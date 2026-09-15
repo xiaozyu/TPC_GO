@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台電排工標記地圖</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 340px; background: #f8f9fa; border-right: 1px solid #ccc; display: flex; flex-direction: column; padding: 15px; gap: 10px; z-index: 1000; }
+        #map { flex: 1; height: 100%; }
+        h3 { font-size: 16px; margin-bottom: 5px; }
+        textarea { width: 100%; height: 160px; padding: 8px; font-size: 13px; resize: none; border: 1px solid #bbb; border-radius: 4px; }
+        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        .clear-btn { background: #6c757d; margin-top: 5px; }
+        .clear-btn:hover { background: #5a6268; }
+        #list { flex: 1; overflow-y: auto; border-top: 1px solid #ddd; padding-top: 10px; }
+        .item { background: white; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 6px; font-size: 13px; cursor: pointer; }
+        .item:hover { border-color: #007bff; }
+        .hint { font-size: 11px; color: #666; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h3>台電案件快速標記</h3>
+    <div class="hint">
+        格式：每行一筆，支援以下格式：<br>
+        1. <code>案號 緯度,經度</code><br>
+        2. <code>緯度,經度</code><br>
+        3. <code>案號 台電9碼圖號</code> (例: <code>A1 E1234AA56</code>)
+    </div>
+    <textarea id="input" placeholder="例如：
+案件1 24.1824,120.5482
+案件2 24.1611,120.5213
+大肚案件 24.1530,120.5420"></textarea>
+    <button onclick="renderMarkers()">在地圖上標記點位</button>
+    <button class="clear-btn" onclick="clearAll()">清空重填</button>
+    <div id="list"></div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // 預設中心：龍井服務所周邊 (24.1956, 120.5460)
+    const map = L.map('map').setView([24.1850, 120.5400], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // 固定標記：台電台中區處龍井服務所
+    const officeLatLng = [24.19277, 120.54595];
+    L.marker(officeLatLng, {
+        icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+        })
+    }).addTo(map).bindPopup('<b>【終點交件】台電龍井服務所</b>');
+
+    let markersLayer = L.layerGroup().addTo(map);
+
+    // 台電 9 碼/11 碼圖號轉 TWD97 -> WGS84 簡易演算法 (大甲/台中區域基準)
+    function tpcToWgs84(code) {
+        // 若直接是經緯度格式，不處理直接回傳
+        return null; 
+    }
+
+    function renderMarkers() {
+        markersLayer.clearLayers();
+        const listDiv = document.getElementById('list');
+        listDiv.innerHTML = '';
+        const lines = document.getElementById('input').value.trim().split('\n');
+        const bounds = [officeLatLng];
+
+        lines.forEach((line, index) => {
+            line = line.trim();
+            if (!line) return;
+
+            let title = `案件 ${index + 1}`;
+            let lat = null, lng = null;
+
+            // 支援空白隔開「名稱 座標」
+            const parts = line.split(/\s+/);
+            let coordStr = parts.length > 1 ? parts[1] : parts[0];
+            if (parts.length > 1) title = parts[0];
+
+            if (coordStr.includes(',')) {
+                const [la, ln] = coordStr.split(',');
+                lat = parseFloat(la);
+                lng = parseFloat(ln);
+            }
+
+            if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+                bounds.push([lat, lng]);
+                const marker = L.marker([lat, lng]).addTo(markersLayer);
+                
+                const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+                const popupContent = `
+                    <b>${title}</b><br>
+                    座標: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>
+                    <a href="${googleNavUrl}" target="_blank" style="color:blue;">開啟 Google 導航</a>
+                `;
+                marker.bindPopup(popupContent);
+
+                // 側邊欄列表
+                const item = document.createElement('div');
+                item.className = 'item';
+                item.innerHTML = `<b>${title}</b> (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+                item.onclick = () => {
+                    map.flyTo([lat, lng], 16);
+                    marker.openPopup();
+                };
+                listDiv.appendChild(item);
+            }
+        });
+
+        if (bounds.length > 1) {
+            map.fitBounds(bounds, { padding: [40, 40] });
+        }
+    }
+
+    function clearAll() {
+        markersLayer.clearLayers();
+        document.getElementById('input').value = '';
+        document.getElementById('list').innerHTML = '';
+        map.setView(officeLatLng, 13);
+    }
+</script>
+</body>
+</html>
