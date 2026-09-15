@@ -244,11 +244,12 @@ g4464sa97
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
     // 依 Google 地圖連結校準之點位
+   // 依使用者截圖實體 Pin 點絕對校正
     const baseLocations = [
-        { name: "沙鹿所", lat: 24.23594, lng: 120.55940, color: "green", desc: "公務點" },
+        { name: "沙鹿所", lat: 24.23465, lng: 120.55938, color: "green", desc: "公務點" },
         { name: "龍井所", lat: 24.19532, lng: 120.54611, color: "green", desc: "公務點" },
-        { name: "沙田國三交叉", lat: 24.22582, lng: 120.56388, color: "orange", desc: "休息點" },
-        { name: "南勢溪公園", lat: 24.22554, lng: 120.56472, color: "orange", desc: "休息點" },
+        { name: "沙田國三交叉", lat: 24.22550, lng: 120.56470, color: "orange", desc: "休息點" },
+        { name: "南勢溪公園", lat: 24.22510, lng: 120.56540, color: "orange", desc: "休息點" },
         { name: "中華向上陸橋", lat: 24.22010, lng: 120.54015, color: "orange", desc: "休息點" },
         { name: "萬興陸橋", lat: 24.21528, lng: 120.53678, color: "orange", desc: "休息點" }
     ];
