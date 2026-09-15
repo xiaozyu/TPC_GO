@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TPC_GO 排工標記盤</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { display: flex; height: 100dvh; width: 100vw; overflow: hidden; position: relative; background: #121212; }
@@ -19,7 +20,7 @@
             gap: 8px; 
             z-index: 1001; 
             box-shadow: 2px 0 10px rgba(0,0,0,0.15);
-            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.25s ease;
         }
 
         #map { flex: 1; height: 100%; width: 100%; z-index: 1; }
@@ -30,7 +31,7 @@
 
         textarea { 
             width: 100%; 
-            height: 110px; 
+            height: 95px; 
             padding: 8px; 
             font-size: 13px; 
             resize: none; 
@@ -43,7 +44,7 @@
         .btn-group { display: flex; flex-direction: column; gap: 6px; }
         button { 
             width: 100%; 
-            padding: 10px; 
+            padding: 9px; 
             background: #007bff; 
             color: white; 
             border: none; 
@@ -55,18 +56,33 @@
         }
         button:active { filter: brightness(0.9); }
         
-        .launch-all-btn { background: #e65100; font-size: 14px; }
+        .launch-all-btn { background: #e65100; font-size: 13px; }
         .copy-btn { background: #28a745; }
-        .clear-btn { background: #6c757d; padding: 6px; font-size: 11px; font-weight: normal; }
+        .clear-btn { background: #6c757d; padding: 5px; font-size: 11px; font-weight: normal; }
 
         #list { flex: 1; overflow-y: auto; border-top: 1px solid #eee; padding-top: 6px; -webkit-overflow-scrolling: touch; }
-        .item { background: #f8fafc; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 6px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .item:hover { background: #edf2f7; }
-        .item-nav-btn { background: #ff9800; color: white; padding: 5px 8px; font-size: 12px; border-radius: 4px; border: none; font-weight: bold; white-space: nowrap; }
+        
+        /* 拖曳案件項目樣式 */
+        .item { 
+            background: #f8fafc; 
+            padding: 8px 10px; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 6px; 
+            margin-bottom: 6px; 
+            font-size: 13px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            touch-action: pan-y;
+            user-select: none;
+        }
+        .item.sortable-ghost { opacity: 0.4; background: #e2e8f0; }
+        .drag-handle { cursor: grab; color: #94a3b8; font-size: 14px; margin-right: 8px; }
+        .item-nav-btn { background: #ff9800; color: white; padding: 5px 8px; font-size: 11px; border-radius: 4px; border: none; font-weight: bold; white-space: nowrap; }
 
         .hint { font-size: 11px; color: #666; line-height: 1.3; }
         .quick-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #eee; padding-top: 6px; }
-        .quick-btn { background: #eef2f5; color: #333; font-size: 11px; padding: 6px 2px; border: 1px solid #d1d9e0; border-radius: 4px; font-weight: normal; }
+        .quick-btn { background: #eef2f5; color: #333; font-size: 11px; padding: 5px 2px; border: 1px solid #d1d9e0; border-radius: 4px; font-weight: normal; }
 
         .permanent-label {
             background: rgba(15, 23, 42, 0.9);
@@ -94,14 +110,14 @@
                 border-radius: 0 0 14px 14px;
             }
             #sidebar.collapsed {
-                transform: translateY(-90%);
+                transform: translateY(-92%);
                 box-shadow: none;
             }
             #sidebar.collapsed .hide-on-collapse {
                 display: none;
             }
             .toggle-btn { display: block; }
-            textarea { height: 85px; }
+            textarea { height: 80px; }
         }
     </style>
 </head>
@@ -113,18 +129,18 @@
         <button class="toggle-btn" onclick="toggleSidebar()">展開/收合</button>
     </div>
 
-    <div class="hint hide-on-collapse">支援大小寫混打、空格、S 延伸計算與路名反查</div>
+    <div class="hint hide-on-collapse">自動補G、S延伸計算。<b>可按住 ☰ 滑動排工順序</b></div>
 
-    <textarea id="input" class="hide-on-collapse" placeholder="貼上今日案件，例：
-g4353ae54
-案件2 g4464bb88
-大甲案件 g4464sa97
+    <textarea id="input" class="hide-on-collapse" placeholder="貼上今日案件（沒打G會自動補）：
+4143ae57
+g4464sa97
+4464sa97
 g3759aa7788"></textarea>
 
     <div class="btn-group hide-on-collapse">
         <button onclick="renderMarkers(true)">在地圖上標記點位</button>
-        <button class="launch-all-btn" onclick="launchTitanBatch()">🚀 整批匯入巨擎導航</button>
-        <button class="copy-btn" onclick="copySortedList()">📋 複製案件文字清單</button>
+        <button class="launch-all-btn" onclick="launchTitanBatch()">🚀 整批匯入巨擎導航 (依排序)</button>
+        <button class="copy-btn" onclick="copySortedList()">📋 複製已排案件清單</button>
         <button class="clear-btn" onclick="clearAll()">清空重填</button>
     </div>
 
@@ -150,27 +166,28 @@ g3759aa7788"></textarea>
         document.getElementById('sidebar').classList.toggle('collapsed');
     }
 
-    const googleRoads = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['0', '1', '2', '3'],
-        attribution: '&copy; Google Maps'
+    // 清爽圖資：CartoDB Voyager（過濾所有雜亂餐廳/小吃店，僅保留主幹道與基本路名）
+    const cleanRoads = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd',
+        attribution: '&copy; CartoDB'
     });
 
     const googleHybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['0', '1', '2', '3'],
-        attribution: '&copy; Google Maps'
+        attribution: '&copy; Google'
     });
 
     const map = L.map('map', {
         center: [24.2100, 120.5500],
         zoom: 12,
         zoomControl: false,
-        layers: [googleRoads]
+        layers: [cleanRoads]
     });
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
+    L.control.layers({ "極簡道路圖": cleanRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
     const baseLocations = [
         { name: "龍井服務所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務點" },
@@ -204,6 +221,26 @@ g3759aa7788"></textarea>
 
     let markersLayer = L.layerGroup().addTo(map);
     let parsedCases = [];
+
+    // 初始化 Sortable 支援拖曳排序
+    const listContainer = document.getElementById('list');
+    Sortable.create(listContainer, {
+        handle: '.drag-handle',
+        animation: 150,
+        onEnd: function () {
+            // 根據拖曳後的 DOM 重新排序列表與地圖編號
+            const items = listContainer.querySelectorAll('.item');
+            const reordered = [];
+            items.forEach((itemDom, newIdx) => {
+                const oldIdx = parseInt(itemDom.getAttribute('data-index'), 10);
+                const caseData = parsedCases[oldIdx];
+                caseData.displayIndex = newIdx + 1;
+                reordered.push(caseData);
+            });
+            parsedCases = reordered;
+            refreshMarkersAndList();
+        }
+    });
 
     function locateBase(index) {
         const target = baseLocations[index];
@@ -254,8 +291,15 @@ g3759aa7788"></textarea>
         return { lat: lat * 180 / Math.PI, lng: lon * 180 / Math.PI };
     }
 
+    // 圖號轉換：未打英文自動補 G、支援 S 偏移
     function parsePowerCoord(codeStr) {
-        const cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
+        let cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
+        
+        // 若以數字開頭 (如 4143AE57 或 4464SA97)，自動補上前綴 'G'
+        if (/^\d{4}[A-Z]{2}(\d{2}|\d{4})$/.test(cleaned)) {
+            cleaned = 'G' + cleaned;
+        }
+
         const match = cleaned.match(/^([A-HJ-Z])(\d{2})(\d{2})([A-Z])([A-Z])(\d{2}|\d{4})$/);
         if (!match) return null;
 
@@ -285,50 +329,88 @@ g3759aa7788"></textarea>
         return { ...twd97ToWGS84(twdX, twdY), standardCode: cleaned };
     }
 
-    // 單點直開巨擎導航
     function launchTitanDirect(code, lat, lng) {
         const url = `${TITAN_NAV_URL}?code=${encodeURIComponent(code)}&lat=${lat}&lng=${lng}`;
         window.open(url, '_blank');
     }
 
-    // 整批案件直接導入巨擎導航
     function launchTitanBatch() {
         if (parsedCases.length === 0) {
-            alert("請先輸入案件並點擊標記！");
+            alert("請先輸入案件並標記！");
             return;
         }
-        const encodedData = encodeURIComponent(parsedCases.map(c => `${c.title} ${c.code}`).join('\n'));
+        const encodedData = encodeURIComponent(parsedCases.map(c => `案件${c.displayIndex} ${c.code}`).join('\n'));
         const url = `${TITAN_NAV_URL}?batch=${encodedData}`;
         window.open(url, '_blank');
     }
 
-    async function renderMarkers(autoCollapseOnMobile = false) {
+    // 重新繪製地圖標記與側邊欄（拖曳排序後調用）
+    function refreshMarkersAndList() {
         markersLayer.clearLayers();
-        parsedCases = [];
-        const listDiv = document.getElementById('list');
-        listDiv.innerHTML = '';
-        const lines = document.getElementById('input').value.trim().split('\n');
+        listContainer.innerHTML = '';
         const bounds = [];
-
         baseLocations.forEach(loc => bounds.push([loc.lat, loc.lng]));
+
+        parsedCases.forEach((c, idx) => {
+            bounds.push([c.lat, c.lng]);
+            const marker = L.marker([c.lat, c.lng]).addTo(markersLayer);
+            c.marker = marker;
+
+            const title = `案件 ${c.displayIndex}`;
+            const roadLabel = c.road ? ` | ${c.road}` : '';
+
+            marker.bindTooltip(`<b>${title}</b> <span class="road-text">(${c.code}${roadLabel})</span>`, {
+                permanent: true,
+                direction: 'top',
+                offset: [0, -10],
+                className: 'permanent-label'
+            });
+
+            const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`;
+            marker.bindPopup(`
+                <b>${title}</b><br>
+                ${c.road ? `<b>路名: ${c.road}</b><br>` : ''}
+                圖號: ${c.code}<br>
+                WGS84: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}<br><br>
+                <button onclick="launchTitanDirect('${c.code}', ${c.lat}, ${c.lng})" style="background:#ff9800;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🚀 開啟巨擎導航</button>
+                <a href="${googleNavUrl}" target="_blank" style="color:#007bff;font-size:12px;text-decoration:none;">開啟 Google 導航</a>
+            `);
+
+            const item = document.createElement('div');
+            item.className = 'item';
+            item.setAttribute('data-index', idx);
+            item.innerHTML = `
+                <div style="display:flex;align-items:center;flex:1;">
+                    <span class="drag-handle">☰</span>
+                    <div>
+                        <b>${title}</b> <span style="font-size:11px;color:#666;">${c.code}</span><br>
+                        <span style="color:#007bff;font-size:11px;">${c.road ? `(${c.road})` : ''}</span>
+                    </div>
+                </div>
+                <button class="item-nav-btn" onclick="event.stopPropagation(); launchTitanDirect('${c.code}', ${c.lat}, ${c.lng})">🚀 導航</button>
+            `;
+            item.onclick = () => {
+                map.flyTo([c.lat, c.lng], 17);
+                marker.openPopup();
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.add('collapsed');
+                }
+            };
+            listContainer.appendChild(item);
+        });
+    }
+
+    async function renderMarkers(autoCollapseOnMobile = false) {
+        parsedCases = [];
+        const lines = document.getElementById('input').value.trim().split('\n');
 
         for (let index = 0; index < lines.length; index++) {
             let line = lines[index].trim();
             if (!line) continue;
 
-            let title = `案件 ${index + 1}`;
             let lat = null, lng = null, standardCode = '';
-
             const parts = line.split(/\s+/);
-            let payload = line;
-
-            if (parts.length >= 2) {
-                const testCoord = parsePowerCoord(parts[parts.length - 1]);
-                if (testCoord || parts[parts.length - 1].includes(',')) {
-                    payload = parts.pop();
-                    title = parts.join(' ');
-                }
-            }
+            let payload = parts.length > 1 ? parts[parts.length - 1] : parts[0];
 
             const powerRes = parsePowerCoord(payload);
             if (powerRes) {
@@ -340,68 +422,33 @@ g3759aa7788"></textarea>
                 lat = parseFloat(la);
                 lng = parseFloat(ln);
                 standardCode = `${lat.toFixed(5)},${lng.toFixed(5)}`;
-            } else if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                lng = parseFloat(parts[0]);
-                lat = parseFloat(parts[1]);
-                standardCode = `${lat.toFixed(5)},${lng.toFixed(5)}`;
             }
 
             if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-                bounds.push([lat, lng]);
-
-                const caseItem = { title, code: standardCode, lat, lng };
-                parsedCases.push(caseItem);
-
-                const marker = L.marker([lat, lng]).addTo(markersLayer);
-
-                marker.bindTooltip(`<b>${title}</b> <span class="road-text">(${standardCode})</span>`, {
-                    permanent: true,
-                    direction: 'top',
-                    offset: [0, -10],
-                    className: 'permanent-label'
-                });
-
-                const item = document.createElement('div');
-                item.className = 'item';
-                item.innerHTML = `
-                    <div style="flex:1;">
-                        <b>${title}</b><br>
-                        <span style="color:#666;font-size:11px;">${standardCode}</span> 
-                        <span id="road-item-${index}" style="color:#007bff;font-size:11px;"></span>
-                    </div>
-                    <button class="item-nav-btn" onclick="event.stopPropagation(); launchTitanDirect('${standardCode}', ${lat}, ${lng})">🚀 導航</button>
-                `;
-                item.onclick = () => {
-                    map.flyTo([lat, lng], 17);
-                    marker.openPopup();
-                    if (window.innerWidth <= 768) {
-                        document.getElementById('sidebar').classList.add('collapsed');
-                    }
-                };
-                listDiv.appendChild(item);
-
-                fetchRoadName(lat, lng).then(road => {
-                    const roadLabel = road ? ` | ${road}` : '';
-                    marker.setTooltipContent(`<b>${title}</b> <span class="road-text">${roadLabel}</span>`);
-                    
-                    const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-                    marker.bindPopup(`
-                        <b>${title}</b><br>
-                        ${road ? `<b>路名: ${road}</b><br>` : ''}
-                        圖號/座標: ${standardCode}<br>
-                        WGS84: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br><br>
-                        <button onclick="launchTitanDirect('${standardCode}', ${lat}, ${lng})" style="background:#ff9800;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🚀 開啟巨擎導航</button>
-                        <a href="${googleNavUrl}" target="_blank" style="color:#007bff;font-size:12px;text-decoration:none;">開啟 Google 導航</a>
-                    `);
-
-                    const itemRoadSpan = document.getElementById(`road-item-${index}`);
-                    if (itemRoadSpan && road) itemRoadSpan.innerText = `(${road})`;
+                parsedCases.push({
+                    displayIndex: parsedCases.length + 1,
+                    code: standardCode,
+                    lat: lat,
+                    lng: lng,
+                    road: ''
                 });
             }
         }
 
-        if (bounds.length > 0) {
-            map.fitBounds(bounds, { padding: [40, 40] });
+        refreshMarkersAndList();
+
+        // 批次非同步查路名
+        parsedCases.forEach((c) => {
+            fetchRoadName(c.lat, c.lng).then(road => {
+                c.road = road;
+                refreshMarkersAndList();
+            });
+        });
+
+        if (parsedCases.length > 0) {
+            const allBounds = parsedCases.map(c => [c.lat, c.lng]);
+            baseLocations.forEach(loc => allBounds.push([loc.lat, loc.lng]));
+            map.fitBounds(allBounds, { padding: [40, 40] });
         }
 
         if (autoCollapseOnMobile && window.innerWidth <= 768) {
@@ -411,15 +458,13 @@ g3759aa7788"></textarea>
 
     function copySortedList() {
         if (parsedCases.length === 0) {
-            alert("目前尚無標記的案件，請先輸入並標記！");
+            alert("目前尚無標記的案件！");
             return;
         }
-
-        const textToCopy = parsedCases.map(c => `${c.title} ${c.code}`).join('\n');
-
+        const textToCopy = parsedCases.map(c => `案件${c.displayIndex} ${c.code}`).join('\n');
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(textToCopy).then(() => {
-                alert(`已成功複製 ${parsedCases.length} 筆案件！`);
+                alert(`已依排序複製 ${parsedCases.length} 筆案件！`);
             }).catch(() => fallbackCopy(textToCopy));
         } else {
             fallbackCopy(textToCopy);
@@ -431,24 +476,19 @@ g3759aa7788"></textarea>
         ta.value = text;
         ta.style.position = 'fixed';
         ta.style.top = '0';
-        ta.style.left = '0';
         document.body.appendChild(ta);
         ta.focus();
         ta.select();
-        try {
-            document.execCommand('copy');
-            alert(`已成功複製 ${parsedCases.length} 筆案件！`);
-        } catch (err) {
-            alert('複製失敗，請手動選取複製');
-        }
+        document.execCommand('copy');
         document.body.removeChild(ta);
+        alert(`已依排序複製 ${parsedCases.length} 筆案件！`);
     }
 
     function clearAll() {
         markersLayer.clearLayers();
         parsedCases = [];
         document.getElementById('input').value = '';
-        document.getElementById('list').innerHTML = '';
+        listContainer.innerHTML = '';
         map.setView([24.2100, 120.5500], 12);
     }
 </script>
