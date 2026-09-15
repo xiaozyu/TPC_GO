@@ -1,0 +1,15 @@
+{
+  "name": "TPC_GO 排工導航盤",
+  "short_name": "TPC_GO",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#212529",
+  "theme_color": "#212529",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
