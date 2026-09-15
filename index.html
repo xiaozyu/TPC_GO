@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TPC 排工導航盤</title>
+    <title>TPC_GO 排工導航盤</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
@@ -50,7 +50,7 @@
             border-radius: 6px; 
             cursor: pointer; 
             font-weight: bold; 
-            font-size: 13px;
+            font-size: 13px; 
             touch-action: manipulation;
         }
         button:active { filter: brightness(0.9); }
@@ -67,13 +67,12 @@
             font-size: 13px; 
             display: flex; 
             justify-content: space-between; 
-            align-items: center;
+            align-items: center; 
             touch-action: pan-y;
         }
         .drag-handle { cursor: grab; color: #64748b; font-size: 16px; margin-right: 8px; }
         .item-route-btn { background: #d32f2f; color: white; padding: 5px 8px; font-size: 11px; border-radius: 4px; border: none; font-weight: bold; }
 
-        /* 標籤設計 */
         .case-label-large {
             background: rgba(185, 28, 28, 0.95);
             border: 2px solid #ffffff;
@@ -97,7 +96,6 @@
             white-space: nowrap;
         }
 
-        /* 自我定位懸浮按鈕 */
         .gps-btn {
             position: absolute;
             bottom: 25px;
@@ -116,7 +114,6 @@
             font-size: 20px;
         }
 
-        /* 路線資訊橫條 */
         #route-info {
             display: none;
             position: absolute;
@@ -133,7 +130,6 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
-        /* 手機 RWD：抽屜底板式，不擋地圖 */
         @media (max-width: 768px) {
             body { flex-direction: column-reverse; }
             #sidebar {
@@ -162,7 +158,7 @@
 
 <div id="sidebar">
     <div class="header-box">
-        <h3>⚡ 台電排工標記盤</h3>
+        <h3>⚡ TPC_GO 排工導航盤</h3>
         <button class="mobile-toggle" onclick="toggleMobileSheet()">排工/案件清單</button>
     </div>
 
@@ -174,7 +170,7 @@ g3759aa7788"></textarea>
 
     <div class="btn-group">
         <button onclick="renderMarkers(true)">在地圖上標記點位</button>
-        <button class="copy-btn" onclick="copySortedList()">📋 複製已排案件文字</button>
+        <button class="copy-btn" onclick="copySortedList()">📋 複製已排案件清單</button>
         <button class="clear-btn" onclick="clearAll()">清空重填</button>
     </div>
 
@@ -190,7 +186,6 @@ g3759aa7788"></textarea>
         document.getElementById('sidebar').classList.toggle('open');
     }
 
-    // Google 高速地圖
     const googleRoads = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20, subdomains: ['0', '1', '2', '3'], attribution: '&copy; Google'
     });
@@ -207,14 +202,14 @@ g3759aa7788"></textarea>
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
-    // 校正後的固定據點（萬興陸橋與國三沙田涵洞定位校正）
+    // 校正後的固定據點
     const baseLocations = [
         { name: "龍井所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務點" },
         { name: "沙鹿所", lat: 24.23078, lng: 120.56306, color: "green", desc: "公務點" },
-        { name: "南勢溪", lat: 24.22550, lng: 120.56470, color: "orange", desc: "午休點" },
-        { name: "萬興陸橋", lat: 24.16102, lng: 120.54483, color: "orange", desc: "午休點" },
-        { name: "中華向上", lat: 24.21520, lng: 120.53680, color: "orange", desc: "午休點" },
-        { name: "國三沙田", lat: 24.22580, lng: 120.56385, color: "orange", desc: "停駐點" }
+        { name: "中華向上陸橋", lat: 24.21520, lng: 120.53680, color: "orange", desc: "休息點" },
+        { name: "萬興陸橋", lat: 24.15930, lng: 120.54470, color: "orange", desc: "休息點" },
+        { name: "沙田國三交叉", lat: 24.15280, lng: 120.54220, color: "orange", desc: "休息點" },
+        { name: "南勢溪公園", lat: 24.22550, lng: 120.57077, color: "orange", desc: "休息點" }
     ];
 
     baseLocations.forEach(loc => {
@@ -241,7 +236,6 @@ g3759aa7788"></textarea>
     let myCurrentLocation = null;
     let myLocMarker = null;
 
-    // 自我定位功能 (GPS)
     function locateMe() {
         if (!navigator.geolocation) {
             alert("瀏覽器不支援定位功能");
@@ -268,10 +262,8 @@ g3759aa7788"></textarea>
         }, { enableHighAccuracy: true });
     }
 
-    // 直接在頁面上調用路線規劃並畫出線條
     async function calculateRouteTo(destLat, destLng, destName) {
         if (!myCurrentLocation) {
-            // 若尚未取得 GPS，先嘗試定位一次
             navigator.geolocation.getCurrentPosition(pos => {
                 myCurrentLocation = [pos.coords.latitude, pos.coords.longitude];
                 runRoute(destLat, destLng, destName);
@@ -303,11 +295,9 @@ g3759aa7788"></textarea>
             const distanceKm = (route.distance / 1000).toFixed(1);
             const durationMin = Math.round(route.duration / 60);
 
-            // 繪製藍色導航路徑線
             const polyline = L.polyline(coords, { color: '#007bff', weight: 6, opacity: 0.85 }).addTo(routeLayer);
             map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
 
-            // 顯示上方路線資訊提示條
             const infoBox = document.getElementById('route-info');
             infoBox.innerHTML = `🚗 往 ${destName}：${distanceKm} 公里 (約 ${durationMin} 分鐘)`;
             infoBox.style.display = 'block';
@@ -320,7 +310,6 @@ g3759aa7788"></textarea>
         }
     }
 
-    // 初始化滑動排序
     const listContainer = document.getElementById('list');
     Sortable.create(listContainer, {
         handle: '.drag-handle',
@@ -374,18 +363,30 @@ g3759aa7788"></textarea>
 
     function parsePowerCoord(codeStr) {
         let cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
-        if (/^\d{4}[A-Z]{2}(\d{2}|\d{4})$/.test(cleaned)) cleaned = 'G' + cleaned;
-        const match = cleaned.match(/^([A-HJ-Z])(\d{2})(\d{2})([A-Z])([A-Z])(\d{2}|\d{4})$/);
+        if (/^\d{4}[A-Z]{2}(\d{2}|\d{4})$/.test(cleaned)) {
+            cleaned = 'G' + cleaned;
+        }
+
+        // 支援 9 碼或 11 碼圖號（容許延伸字元區段）
+        const match = cleaned.match(/^([A-Z])(\d{2})(\d{2})([A-Z])([A-Z])(\d{2}|\d{4})$/);
         if (!match) return null;
 
         const [_, zone, xMap, yMap, subX, subY, pt] = match;
         const originMap = {
-            'A': [170000, 2750000], 'B': [250000, 2750000], 'C': [170000, 2700000], 'D': [250000, 2700000],
-            'E': [170000, 2650000], 'F': [250000, 2650000], 'G': [170000, 2650000], 'H': [250000, 2600000]
+            'A': [170000, 2750000], 'B': [250000, 2750000],
+            'C': [170000, 2700000], 'D': [250000, 2700000],
+            'E': [170000, 2650000], 'F': [250000, 2650000],
+            'G': [170000, 2650000], 'H': [250000, 2600000]
         };
+
         const baseOrigin = originMap[zone] || [170000, 2650000];
-        let twdX = baseOrigin[0] + parseInt(xMap, 10) * 800 + (subX.charCodeAt(0) - 65) * 100;
-        let twdY = baseOrigin[1] + parseInt(yMap, 10) * 500 + (subY.charCodeAt(0) - 65) * 100;
+
+        // 圖幅偏移（800m x 500m）與子區塊延伸連續偏移計算（容錯延伸區塊）
+        const offsetX = (subX.charCodeAt(0) - 65) * 100;
+        const offsetY = (subY.charCodeAt(0) - 65) * 100;
+
+        let twdX = baseOrigin[0] + parseInt(xMap, 10) * 800 + offsetX;
+        let twdY = baseOrigin[1] + parseInt(yMap, 10) * 500 + offsetY;
 
         if (pt.length === 2) {
             twdX += parseInt(pt[0], 10) * 10;
@@ -394,6 +395,7 @@ g3759aa7788"></textarea>
             twdX += parseInt(pt.substring(0, 2), 10);
             twdY += parseInt(pt.substring(2, 4), 10);
         }
+
         return { ...twd97ToWGS84(twdX, twdY), standardCode: cleaned };
     }
 
@@ -515,7 +517,7 @@ g3759aa7788"></textarea>
             alert("目前尚無標記的案件！");
             return;
         }
-        const textToCopy = parsedCases.map(c => `案件${c.displayIndex} ${c.code}`).join('\n');
+        const textToCopy = parsedCases.map(c => `案件${c.displayIndex} ${c.code}${c.road ? ' (' + c.road + ')' : ''}`).join('\n');
         navigator.clipboard.writeText(textToCopy).then(() => {
             alert(`已複製 ${parsedCases.length} 筆案件！`);
         }).catch(() => {
