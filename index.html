@@ -44,7 +44,7 @@
         .btn-group { display: flex; flex-direction: column; gap: 6px; }
         button { 
             width: 100%; 
-            padding: 9px; 
+            padding: 10px; 
             background: #007bff; 
             color: white; 
             border: none; 
@@ -56,7 +56,8 @@
         }
         button:active { filter: brightness(0.9); }
         
-        .launch-all-btn { background: #e65100; font-size: 13px; }
+        .launch-all-btn { background: #d32f2f; font-size: 14px; box-shadow: 0 2px 6px rgba(211,47,47,0.3); }
+        .launch-all-btn:hover { background: #b71c1c; }
         .copy-btn { background: #28a745; }
         .clear-btn { background: #6c757d; padding: 5px; font-size: 11px; font-weight: normal; }
 
@@ -75,27 +76,30 @@
             touch-action: pan-y;
             user-select: none;
         }
-        .item.sortable-ghost { opacity: 0.4; background: #e2e8f0; }
-        .drag-handle { cursor: grab; color: #94a3b8; font-size: 14px; margin-right: 8px; }
-        .item-nav-btn { background: #ff9800; color: white; padding: 5px 8px; font-size: 11px; border-radius: 4px; border: none; font-weight: bold; white-space: nowrap; }
+        .item.sortable-ghost { opacity: 0.3; background: #ffebee; border: 1px dashed #d32f2f; }
+        .drag-handle { cursor: grab; color: #64748b; font-size: 16px; margin-right: 8px; font-weight: bold; }
+        .item-nav-btn { background: #e53935; color: white; padding: 5px 8px; font-size: 11px; border-radius: 4px; border: none; font-weight: bold; white-space: nowrap; }
 
         .hint { font-size: 11px; color: #666; line-height: 1.3; }
         .quick-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #eee; padding-top: 6px; }
         .quick-btn { background: #eef2f5; color: #333; font-size: 11px; padding: 5px 2px; border: 1px solid #d1d9e0; border-radius: 4px; font-weight: normal; }
 
-        .permanent-label {
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid #334155;
-            color: #fff;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 4px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        /* 顯眼紅色案件標籤 (大字體、強烈對比) */
+        .case-label-large {
+            background: rgba(185, 28, 28, 0.95);
+            border: 2px solid #ffffff;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 6px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.5);
             white-space: nowrap;
+            letter-spacing: 0.5px;
         }
-        .road-text { color: #facc15; font-weight: normal; margin-left: 2px; }
+        .case-road-text { color: #fef08a; font-weight: bold; font-size: 12px; margin-left: 4px; }
 
+        /* 休息與出勤點標籤 (極簡小字體) */
         .base-label {
             background: rgba(30, 41, 59, 0.85);
             border: 1px solid #475569;
@@ -116,7 +120,7 @@
                 width: 100%;
                 max-height: 82vh;
                 border-right: none;
-                border-bottom: 3px solid #007bff;
+                border-bottom: 3px solid #d32f2f;
                 border-radius: 0 0 14px 14px;
             }
             #sidebar.collapsed {
@@ -139,7 +143,7 @@
         <button class="toggle-btn" onclick="toggleSidebar()">展開/收合</button>
     </div>
 
-    <div class="hint hide-on-collapse">自動補G、S延伸計算。<b>按住 ☰ 滑動排工順序</b></div>
+    <div class="hint hide-on-collapse">未打G自動補G、支援S計算。<b>按住 ☰ 可滑動排列施工順序</b></div>
 
     <textarea id="input" class="hide-on-collapse" placeholder="貼上今日案件：
 4143ae57
@@ -176,14 +180,12 @@ g3759aa7788"></textarea>
         document.getElementById('sidebar').classList.toggle('collapsed');
     }
 
-    // Google 高速道路底圖
     const googleRoads = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['0', '1', '2', '3'],
         attribution: '&copy; Google Maps'
     });
 
-    // Google 衛星混合圖
     const googleHybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['0', '1', '2', '3'],
@@ -200,7 +202,7 @@ g3759aa7788"></textarea>
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
-    // 常用固定點（縮小圖釘與標籤）
+    // 固定據點（公務/午休）
     const baseLocations = [
         { name: "龍井所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務點" },
         { name: "沙鹿所", lat: 24.23078, lng: 120.56306, color: "green", desc: "公務點" },
@@ -237,6 +239,7 @@ g3759aa7788"></textarea>
     let markersLayer = L.layerGroup().addTo(map);
     let parsedCases = [];
 
+    // 初始化滑動排序
     const listContainer = document.getElementById('list');
     Sortable.create(listContainer, {
         handle: '.drag-handle',
@@ -345,16 +348,39 @@ g3759aa7788"></textarea>
         window.open(url, '_blank');
     }
 
+    // 將排好順序的整批案件，完整匯入巨擎導航
     function launchTitanBatch() {
         if (parsedCases.length === 0) {
-            alert("請先輸入案件並標記！");
+            alert("請先輸入案件並點擊標記！");
             return;
         }
-        const encodedData = encodeURIComponent(parsedCases.map(c => `案件${c.displayIndex} ${c.code}`).join('\n'));
-        const url = `${TITAN_NAV_URL}?batch=${encodedData}`;
+
+        // 依排序整理純文字行 (例: 案件1 G4143AE57)
+        const batchText = parsedCases.map(c => `案件${c.displayIndex} ${c.code}`).join('\n');
+        
+        // 整理 JSON 結構資料供進階呼叫
+        const payloadData = parsedCases.map(c => ({
+            index: c.displayIndex,
+            code: c.code,
+            lat: c.lat,
+            lng: c.lng,
+            road: c.road || ''
+        }));
+
+        // 寫入本地存儲，防止 URL 過長截斷
+        try {
+            localStorage.setItem('tpc_batch_cases', JSON.stringify(payloadData));
+        } catch (e) {}
+
+        const encodedBatch = encodeURIComponent(batchText);
+        const encodedJson = encodeURIComponent(JSON.stringify(payloadData));
+
+        // 同時攜帶 batch 與 data 參數，相容兩種解析機制
+        const url = `${TITAN_NAV_URL}?batch=${encodedBatch}&data=${encodedJson}`;
         window.open(url, '_blank');
     }
 
+    // 重新繪製地圖標記與側邊欄（使用顯眼紅色圖釘與大字體標籤）
     function refreshMarkersAndList() {
         markersLayer.clearLayers();
         listContainer.innerHTML = '';
@@ -363,26 +389,38 @@ g3759aa7788"></textarea>
 
         parsedCases.forEach((c, idx) => {
             bounds.push([c.lat, c.lng]);
-            const marker = L.marker([c.lat, c.lng]).addTo(markersLayer);
+
+            // 顯眼紅色大圖釘
+            const marker = L.marker([c.lat, c.lng], {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(markersLayer);
             c.marker = marker;
 
             const title = `案件 ${c.displayIndex}`;
             const roadLabel = c.road ? ` | ${c.road}` : '';
 
-            marker.bindTooltip(`<b>${title}</b> <span class="road-text">(${c.code}${roadLabel})</span>`, {
+            // 醒目大標籤
+            marker.bindTooltip(`<b>${title}</b> ${c.code}<span class="case-road-text">${roadLabel}</span>`, {
                 permanent: true,
                 direction: 'top',
-                offset: [0, -10],
-                className: 'permanent-label'
+                offset: [0, -12],
+                className: 'case-label-large'
             });
 
             const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`;
             marker.bindPopup(`
-                <b>${title}</b><br>
+                <b style="font-size:15px;color:#d32f2f;">${title}</b><br>
                 ${c.road ? `<b>路名: ${c.road}</b><br>` : ''}
-                圖號: ${c.code}<br>
-                WGS84: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}<br><br>
-                <button onclick="launchTitanDirect('${c.code}', ${c.lat}, ${c.lng})" style="background:#ff9800;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🚀 開啟巨擎導航</button>
+                圖號: <b>${c.code}</b><br>
+                坐標: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}<br><br>
+                <button onclick="launchTitanDirect('${c.code}', ${c.lat}, ${c.lng})" style="background:#d32f2f;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🚀 開啟巨擎導航</button>
                 <a href="${googleNavUrl}" target="_blank" style="color:#007bff;font-size:12px;text-decoration:none;">開啟 Google 導航</a>
             `);
 
@@ -393,7 +431,7 @@ g3759aa7788"></textarea>
                 <div style="display:flex;align-items:center;flex:1;">
                     <span class="drag-handle">☰</span>
                     <div>
-                        <b>${title}</b> <span style="font-size:11px;color:#666;">${c.code}</span><br>
+                        <b style="color:#d32f2f;font-size:14px;">${title}</b> <span style="font-size:12px;color:#333;font-weight:bold;">${c.code}</span><br>
                         <span style="color:#007bff;font-size:11px;">${c.road ? `(${c.road})` : ''}</span>
                     </div>
                 </div>
