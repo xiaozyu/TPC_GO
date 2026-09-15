@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TPC_GO 排工標記導航盤</title>
+    <title>TPC_GO 排工標記盤</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -55,16 +55,14 @@
         }
         button:active { filter: brightness(0.9); }
         
+        .launch-all-btn { background: #e65100; font-size: 14px; }
         .copy-btn { background: #28a745; }
         .clear-btn { background: #6c757d; padding: 6px; font-size: 11px; font-weight: normal; }
-
-        .settings-bar { font-size: 11px; color: #555; background: #eef2f6; padding: 6px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px; }
-        .settings-bar input { width: 100%; padding: 4px; font-size: 11px; border: 1px solid #ccc; border-radius: 3px; }
 
         #list { flex: 1; overflow-y: auto; border-top: 1px solid #eee; padding-top: 6px; -webkit-overflow-scrolling: touch; }
         .item { background: #f8fafc; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 6px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         .item:hover { background: #edf2f7; }
-        .item-nav-btn { background: #ff9800; color: white; padding: 4px 8px; font-size: 11px; border-radius: 4px; border: none; font-weight: bold; }
+        .item-nav-btn { background: #ff9800; color: white; padding: 5px 8px; font-size: 12px; border-radius: 4px; border: none; font-weight: bold; white-space: nowrap; }
 
         .hint { font-size: 11px; color: #666; line-height: 1.3; }
         .quick-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #eee; padding-top: 6px; }
@@ -111,26 +109,22 @@
 
 <div id="sidebar">
     <div class="header-box">
-        <h3>⚡ 台電排工標記導航盤</h3>
+        <h3>⚡ 台電排工標記盤</h3>
         <button class="toggle-btn" onclick="toggleSidebar()">展開/收合</button>
     </div>
 
-    <div class="hint hide-on-collapse">支援大小寫混打、空格、S 區段延伸與路名反查</div>
+    <div class="hint hide-on-collapse">支援大小寫混打、空格、S 延伸計算與路名反查</div>
 
-    <textarea id="input" class="hide-on-collapse" placeholder="貼上今日案件（可直接含案號）：
+    <textarea id="input" class="hide-on-collapse" placeholder="貼上今日案件，例：
 g4353ae54
 案件2 g4464bb88
 大甲案件 g4464sa97
 g3759aa7788"></textarea>
 
-    <div class="settings-bar hide-on-collapse">
-        <label>巨擎導航喚起路徑 (支援 Scheme 或 URL)：</label>
-        <input id="navScheme" type="text" value="titan://nav" placeholder="例: titan://nav 或 http://localhost:3000" />
-    </div>
-
     <div class="btn-group hide-on-collapse">
         <button onclick="renderMarkers(true)">在地圖上標記點位</button>
-        <button class="copy-btn" onclick="copySortedList()">📋 一鍵複製案件（貼至巨擎導航）</button>
+        <button class="launch-all-btn" onclick="launchTitanBatch()">🚀 整批匯入巨擎導航</button>
+        <button class="copy-btn" onclick="copySortedList()">📋 複製案件文字清單</button>
         <button class="clear-btn" onclick="clearAll()">清空重填</button>
     </div>
 
@@ -150,25 +144,11 @@ g3759aa7788"></textarea>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+    const TITAN_NAV_URL = 'https://xiaozyu.github.io/TPCMap/';
+
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('collapsed');
     }
-
-    // 定義圖釘圖標生成函式 (使用高對比圖釘 Pin)
-    function createPinIcon(color) {
-        return L.icon({
-            iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
-    }
-
-    const redPinIcon = createPinIcon('red');
-    const greenPinIcon = createPinIcon('green');
-    const orangePinIcon = createPinIcon('orange');
 
     const googleRoads = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20,
@@ -192,19 +172,24 @@ g3759aa7788"></textarea>
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
-    // 常駐公務與午休點
     const baseLocations = [
-        { name: "龍井服務所", lat: 24.19277, lng: 120.54595, pin: greenPinIcon, desc: "公務點" },
-        { name: "沙鹿服務所", lat: 24.23078, lng: 120.56306, pin: greenPinIcon, desc: "公務點" },
-        { name: "南勢溪公園", lat: 24.22550, lng: 120.56470, pin: orangePinIcon, desc: "午休點" },
-        { name: "萬興陸橋", lat: 24.17250, lng: 120.54220, pin: orangePinIcon, desc: "午休點" },
-        { name: "中華向上陸橋", lat: 24.21520, lng: 120.53680, pin: orangePinIcon, desc: "午休點" },
-        { name: "國三沙田交叉", lat: 24.16100, lng: 120.53850, pin: orangePinIcon, desc: "停駐點" }
+        { name: "龍井服務所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務點" },
+        { name: "沙鹿服務所", lat: 24.23078, lng: 120.56306, color: "green", desc: "公務點" },
+        { name: "南勢溪公園", lat: 24.22550, lng: 120.56470, color: "orange", desc: "午休點" },
+        { name: "萬興陸橋", lat: 24.17250, lng: 120.54220, color: "orange", desc: "午休點" },
+        { name: "中華向上陸橋", lat: 24.21520, lng: 120.53680, color: "orange", desc: "午休點" },
+        { name: "國三沙田交叉", lat: 24.16100, lng: 120.53850, color: "orange", desc: "停駐點" }
     ];
 
     const baseMarkers = [];
     baseLocations.forEach(loc => {
-        const marker = L.marker([loc.lat, loc.lng], { icon: loc.pin }).addTo(map);
+        const marker = L.marker([loc.lat, loc.lng], {
+            icon: L.icon({
+                iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${loc.color}.png`,
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+            })
+        }).addTo(map);
 
         marker.bindTooltip(`<b>${loc.name}</b>`, {
             permanent: true,
@@ -300,18 +285,21 @@ g3759aa7788"></textarea>
         return { ...twd97ToWGS84(twdX, twdY), standardCode: cleaned };
     }
 
-    function launchTitanNav(title, code, lat, lng) {
-        const baseScheme = document.getElementById('navScheme').value.trim() || 'titan://nav';
-        const queryParams = `title=${encodeURIComponent(title)}&code=${encodeURIComponent(code)}&lat=${lat}&lng=${lng}`;
-        
-        let targetUrl = '';
-        if (baseScheme.includes('?')) {
-            targetUrl = `${baseScheme}&${queryParams}`;
-        } else {
-            targetUrl = `${baseScheme}?${queryParams}`;
-        }
+    // 單點直開巨擎導航
+    function launchTitanDirect(code, lat, lng) {
+        const url = `${TITAN_NAV_URL}?code=${encodeURIComponent(code)}&lat=${lat}&lng=${lng}`;
+        window.open(url, '_blank');
+    }
 
-        window.location.href = targetUrl;
+    // 整批案件直接導入巨擎導航
+    function launchTitanBatch() {
+        if (parsedCases.length === 0) {
+            alert("請先輸入案件並點擊標記！");
+            return;
+        }
+        const encodedData = encodeURIComponent(parsedCases.map(c => `${c.title} ${c.code}`).join('\n'));
+        const url = `${TITAN_NAV_URL}?batch=${encodedData}`;
+        window.open(url, '_blank');
     }
 
     async function renderMarkers(autoCollapseOnMobile = false) {
@@ -364,8 +352,7 @@ g3759aa7788"></textarea>
                 const caseItem = { title, code: standardCode, lat, lng };
                 parsedCases.push(caseItem);
 
-                // 案件點：一律使用「紅色圖釘」
-                const marker = L.marker([lat, lng], { icon: redPinIcon }).addTo(markersLayer);
+                const marker = L.marker([lat, lng]).addTo(markersLayer);
 
                 marker.bindTooltip(`<b>${title}</b> <span class="road-text">(${standardCode})</span>`, {
                     permanent: true,
@@ -382,7 +369,7 @@ g3759aa7788"></textarea>
                         <span style="color:#666;font-size:11px;">${standardCode}</span> 
                         <span id="road-item-${index}" style="color:#007bff;font-size:11px;"></span>
                     </div>
-                    <button class="item-nav-btn" onclick="event.stopPropagation(); launchTitanNav('${title}', '${standardCode}', ${lat}, ${lng})">🚀 導航</button>
+                    <button class="item-nav-btn" onclick="event.stopPropagation(); launchTitanDirect('${standardCode}', ${lat}, ${lng})">🚀 導航</button>
                 `;
                 item.onclick = () => {
                     map.flyTo([lat, lng], 17);
@@ -403,7 +390,7 @@ g3759aa7788"></textarea>
                         ${road ? `<b>路名: ${road}</b><br>` : ''}
                         圖號/座標: ${standardCode}<br>
                         WGS84: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br><br>
-                        <button onclick="launchTitanNav('${title}', '${standardCode}', ${lat}, ${lng})" style="background:#ff9800;padding:6px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🚀 開啟巨擎導航</button>
+                        <button onclick="launchTitanDirect('${standardCode}', ${lat}, ${lng})" style="background:#ff9800;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🚀 開啟巨擎導航</button>
                         <a href="${googleNavUrl}" target="_blank" style="color:#007bff;font-size:12px;text-decoration:none;">開啟 Google 導航</a>
                     `);
 
@@ -432,7 +419,7 @@ g3759aa7788"></textarea>
 
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(textToCopy).then(() => {
-                alert(`已複製 ${parsedCases.length} 筆案件！可直接貼入巨擎導航。`);
+                alert(`已成功複製 ${parsedCases.length} 筆案件！`);
             }).catch(() => fallbackCopy(textToCopy));
         } else {
             fallbackCopy(textToCopy);
@@ -450,7 +437,7 @@ g3759aa7788"></textarea>
         ta.select();
         try {
             document.execCommand('copy');
-            alert(`已複製 ${parsedCases.length} 筆案件！可直接貼入巨擎導航。`);
+            alert(`已成功複製 ${parsedCases.length} 筆案件！`);
         } catch (err) {
             alert('複製失敗，請手動選取複製');
         }
