@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TPC_GO 排工導航盤</title>
 
-    <meta name="theme-color" content="#212529">
+    <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TPC_GO">
@@ -17,38 +17,38 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { display: flex; height: 100dvh; width: 100vw; overflow: hidden; position: relative; background: #212529; }
+        body { display: flex; height: 100dvh; width: 100vw; overflow: hidden; position: relative; background: #0f172a; }
 
         #sidebar { 
             width: 360px; 
-            background: #1e1e24; 
+            background: #111827; 
             color: #fff;
-            border-right: 1px solid #333; 
+            border-right: 1px solid #1f2937; 
             display: flex; 
             flex-direction: column; 
             padding: 12px; 
             gap: 8px; 
             z-index: 1001; 
-            box-shadow: 2px 0 12px rgba(0,0,0,0.5);
+            box-shadow: 2px 0 12px rgba(0,0,0,0.6);
             transition: transform 0.25s ease;
         }
 
         #map { flex: 1; height: 100%; width: 100%; z-index: 1; }
 
         .header-box { display: flex; justify-content: space-between; align-items: center; }
-        h3 { font-size: 16px; color: #60a5fa; font-weight: 800; }
+        h3 { font-size: 16px; color: #38bdf8; font-weight: 800; display: flex; align-items: center; gap: 6px; }
 
         textarea { 
             width: 100%; 
-            height: 95px; 
+            height: 85px; 
             padding: 8px; 
             font-size: 13px; 
             resize: none; 
-            border: 1px solid #444; 
+            border: 1px solid #374151; 
             border-radius: 6px; 
             font-family: monospace; 
-            background: #2b2b36;
-            color: #fff;
+            background: #1f2937;
+            color: #facc15;
         }
 
         .btn-group { display: flex; flex-direction: column; gap: 6px; }
@@ -66,21 +66,22 @@
         }
         button:active { filter: brightness(0.85); }
         
+        .import-btn { background: #2563eb; border: 1px solid #3b82f6; }
         .mode-btn { background: #d97706; }
         .mode-btn.active { background: #dc2626; box-shadow: 0 0 10px #dc2626; }
         .copy-btn { background: #16a34a; }
         .clear-btn { background: #4b5563; padding: 5px; font-size: 11px; }
         .install-btn { background: #9333ea; display: none; }
 
-        .quick-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #333; padding-top: 6px; }
-        .quick-btn { background: #2b2b36; color: #cbd5e1; font-size: 11px; padding: 5px 2px; border: 1px solid #444; border-radius: 4px; }
+        .quick-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #1f2937; padding-top: 6px; }
+        .quick-btn { background: #1f2937; color: #cbd5e1; font-size: 11px; padding: 5px 2px; border: 1px solid #374151; border-radius: 4px; }
 
-        #list { flex: 1; overflow-y: auto; border-top: 1px solid #333; padding-top: 6px; -webkit-overflow-scrolling: touch; }
+        #list { flex: 1; overflow-y: auto; border-top: 1px solid #1f2937; padding-top: 6px; -webkit-overflow-scrolling: touch; }
         
         .item { 
-            background: #2b2b36; 
+            background: #1f2937; 
             padding: 8px 10px; 
-            border: 1px solid #404050; 
+            border: 1px solid #374151; 
             border-radius: 6px; 
             margin-bottom: 6px; 
             font-size: 13px; 
@@ -193,14 +194,14 @@
 
     <div style="font-size:11px;color:#9ca3af;line-height:1.3;">未打G自動補G。<b>點字體或圖釘直接導航/排序</b></div>
 
-    <textarea id="input" placeholder="貼上今日案件：
+    <textarea id="input" placeholder="可直接手動輸入，或點下方一鍵匯入：
 青年路50號邊 G4263SA49
-六路十五街35號對面 G4458HA31
-型份東段781-5地號 G4764AA87"></textarea>
+六路十五街35號對面 G4458HA31"></textarea>
 
     <div class="btn-group">
+        <button id="btnClipboardImport" class="import-btn" onclick="triggerSmartImport()">📋 一鍵匯入派工單 (讀取剪貼簿)</button>
         <button id="installAppBtn" class="install-btn" onclick="triggerPWAInstall()">📲 下載安裝為 APP</button>
-        <button onclick="renderMarkers(true)">在地圖上標記點位</button>
+        <button onclick="renderMarkers(true)">在地圖上手動解析標記</button>
         <button id="tapSortBtn" class="mode-btn" onclick="toggleTapSortMode()">👆 點圖自動排工順序 (已關閉)</button>
         <button id="copyBtn" class="copy-btn" onclick="copySortedList()">📋 複製已排案件清單</button>
         <button class="clear-btn" onclick="clearAll()">清空重填</button>
@@ -227,34 +228,62 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --- 程式碼動態生成 PNG 圖示與標準 Manifest ---
+    // --- 程式碼動態生成 PWA 圖示與 Manifest ---
     function generateAppIcon(size) {
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
 
-        // 背景深色圓角矩形
-        ctx.fillStyle = '#212529';
+        const bgGrad = ctx.createLinearGradient(0, 0, size, size);
+        bgGrad.addColorStop(0, '#0f172a');
+        bgGrad.addColorStop(1, '#020617');
+        ctx.fillStyle = bgGrad;
+        
         ctx.beginPath();
-        const r = size * 0.2;
-        ctx.roundRect(0, 0, size, size, [r]);
+        ctx.roundRect(0, 0, size, size, [size * 0.22]);
         ctx.fill();
 
-        // 繪製台電閃電標誌
-        ctx.fillStyle = '#facc15';
-        ctx.strokeStyle = '#eab308';
-        ctx.lineWidth = size * 0.02;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = size * 0.015;
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+        ctx.lineWidth = size * 0.012;
+        const grid = size / 6;
+        for (let i = 1; i < 6; i++) {
+            ctx.beginPath(); ctx.moveTo(i * grid, 0); ctx.lineTo(i * grid, size); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, i * grid); ctx.lineTo(size, i * grid); ctx.stroke();
+        }
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(250, 204, 21, 0.6)';
+        ctx.shadowBlur = size * 0.18;
+
+        const boltGrad = ctx.createLinearGradient(size * 0.3, size * 0.1, size * 0.7, size * 0.9);
+        boltGrad.addColorStop(0, '#fef08a');
+        boltGrad.addColorStop(0.4, '#facc15');
+        boltGrad.addColorStop(1, '#ea580c');
+        ctx.fillStyle = boltGrad;
         ctx.beginPath();
-        ctx.moveTo(size * 0.55, size * 0.12);
-        ctx.lineTo(size * 0.25, size * 0.55);
-        ctx.lineTo(size * 0.48, size * 0.55);
-        ctx.lineTo(size * 0.40, size * 0.88);
-        ctx.lineTo(size * 0.75, size * 0.45);
-        ctx.lineTo(size * 0.52, size * 0.45);
+        ctx.moveTo(size * 0.58, size * 0.10);
+        ctx.lineTo(size * 0.22, size * 0.52);
+        ctx.lineTo(size * 0.46, size * 0.52);
+        ctx.lineTo(size * 0.36, size * 0.90);
+        ctx.lineTo(size * 0.78, size * 0.44);
+        ctx.lineTo(size * 0.54, size * 0.44);
         ctx.closePath();
         ctx.fill();
-        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.beginPath();
+        ctx.moveTo(size * 0.58, size * 0.10);
+        ctx.lineTo(size * 0.42, size * 0.30);
+        ctx.lineTo(size * 0.48, size * 0.44);
+        ctx.lineTo(size * 0.54, size * 0.44);
+        ctx.closePath();
+        ctx.fill();
 
         return canvas.toDataURL('image/png');
     }
@@ -263,7 +292,7 @@
     const icon512 = generateAppIcon(512);
 
     document.getElementById('dynamic-favicon').href = icon192;
-    document.getElementById('dynamic-apple-icon').href = icon192;
+    document.getElementById('dynamic-apple-icon').href = icon512;
 
     const manifestObj = {
         name: "TPC_GO 排工導航盤",
@@ -271,8 +300,8 @@
         start_url: window.location.href,
         scope: window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1),
         display: "standalone",
-        background_color: "#212529",
-        theme_color: "#212529",
+        background_color: "#0f172a",
+        theme_color: "#0f172a",
         icons: [
             { src: icon192, sizes: "192x192", type: "image/png" },
             { src: icon512, sizes: "512x512", type: "image/png" }
@@ -281,7 +310,6 @@
     const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
     document.getElementById('dynamic-manifest').href = URL.createObjectURL(manifestBlob);
 
-    // 註冊 Service Worker
     let deferredPrompt = null;
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
@@ -387,6 +415,7 @@
     let isTapSortMode = false;
     let tapSortedOrder = [];
 
+    // --- 嚴謹座標轉換（含西海岸 TWD67/TWD97 偏差校正） ---
     function wgs84ToTWD97(lat, lon) {
         const a = 6378137.0, b = 6356752.314245;
         const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
@@ -421,7 +450,7 @@
         const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
         
         const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
-        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
         const j3 = 151 * e1 * e1 * e1 / 96;
         
         const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
@@ -466,8 +495,22 @@
         return `G${pad2(xMap)}${pad2(yMap)}${subX}${subY}${Math.min(Math.max(ptX, 0), 9)}${Math.min(Math.max(ptY, 0), 9)}`;
     }
 
+    const TO_DIGIT = { 'O': '0', 'I': '1', 'L': '1', 'Z': '2', 'A': '4', 'S': '5', 'G': '6', 'B': '8', 'Q': '0', 'D': '0' };
+    const TO_LETTER = { '0': 'O', '1': 'I', '8': 'B', '5': 'S', '2': 'Z' };
+
+    function sanitizeTaipowerCode(raw) {
+        let s = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (s.length < 9) return raw;
+        let arr = s.split('');
+        if (TO_LETTER[arr[0]]) arr[0] = TO_LETTER[arr[0]];
+        for (let i = 1; i <= 4; i++) if (TO_DIGIT[arr[i]]) arr[i] = TO_DIGIT[arr[i]];
+        for (let i = 5; i <= 6; i++) if (TO_LETTER[arr[i]]) arr[i] = TO_LETTER[arr[i]];
+        for (let i = 7; i < arr.length; i++) if (TO_DIGIT[arr[i]]) arr[i] = TO_DIGIT[arr[i]];
+        return arr.join('');
+    }
+
     function parsePowerCoord(codeStr) {
-        let cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
+        let cleaned = sanitizeTaipowerCode(codeStr.replace(/\s+/g, '').toUpperCase());
         if (/^\d{4}[A-Z]{2}(\d{2}|\d{4})$/.test(cleaned)) {
             cleaned = 'G' + cleaned;
         }
@@ -475,7 +518,13 @@
         const match = cleaned.match(/^([A-HJ-Z])(\d{2})(\d{2})([A-Z])([A-Z])(\d{2}|\d{4})$/);
         if (!match) return null;
 
-        const [_, zone, xMap, yMap, subX, subY, pt] = match;
+        const [_, zone, xMap, yMap, rawSubX, rawSubY, pt] = match;
+
+        let subX = rawSubX;
+        let subY = rawSubY;
+        if (subX === 'S') subX = 'B';
+        if (subX > 'H') subX = 'A';
+        if (subY > 'E') subY = 'A';
 
         const originMap = {
             'A': [170000, 2750000], 'B': [250000, 2750000],
@@ -780,67 +829,143 @@
         });
     }
 
-    async function renderMarkers(autoCloseOnMobile = false) {
-        parsedCases = [];
-        const lines = document.getElementById('input').value.trim().split('\n');
+    // --- 核心：移植巨擎導航的高容錯圖號正規表達式 ---
+    const COORD_REGEX = /[A-Za-z]?[0-9]{4}\s*[A-Za-z]{2}\s*(?:[0-9]{4}|[0-9]{2})/gi;
 
-        for (let index = 0; index < lines.length; index++) {
-            let line = lines[index].trim();
-            if (!line) continue;
+    function processTextContent(content) {
+        if (!content || !content.trim()) return;
 
-            let lat = null, lng = null, standardCode = '', rawName = '';
+        const lines = content.split(/[\r\n]+/);
+        const newCases = [];
 
-            const codeMatch = line.match(/([A-Za-z]?\d{4}[A-Za-z]{2}(?:\d{2}|\d{4}))/);
-            
-            if (codeMatch) {
-                const targetCode = codeMatch[1];
-                rawName = line.replace(targetCode, '').trim() || `案件 ${index + 1}`;
-                const powerRes = parsePowerCoord(targetCode);
-                if (powerRes) {
-                    lat = powerRes.lat;
-                    lng = powerRes.lng;
-                    standardCode = powerRes.standardCode;
-                }
+        lines.forEach(line => {
+            // 過濾巨擎導航識別的系統雜訊
+            if (line.includes("每頁") || line.includes("施工地點") || line.includes("當日") || line.includes("領班")) return;
+
+            let matches = line.match(COORD_REGEX);
+            if (matches) {
+                matches.forEach(m => {
+                    let rawCode = m.replace(/\s+/g, '').toUpperCase();
+                    if (/^[0-9]/.test(rawCode)) rawCode = 'G' + rawCode;
+
+                    const powerRes = parsePowerCoord(rawCode);
+                    if (powerRes) {
+                        let note = line.replace(m, '').replace(/[\s,]+/g, ' ').trim();
+                        newCases.push({
+                            code: powerRes.standardCode,
+                            rawName: note || `案件 ${parsedCases.length + newCases.length + 1}`,
+                            lat: powerRes.lat,
+                            lng: powerRes.lng,
+                            road: ''
+                        });
+                    }
+                });
             } else if (line.includes(',')) {
                 const parts = line.split(/\s+/);
                 const coordPart = parts.find(p => p.includes(','));
-                rawName = parts.filter(p => p !== coordPart).join(' ') || `案件 ${index + 1}`;
                 const [la, ln] = coordPart.split(',');
-                lat = parseFloat(la);
-                lng = parseFloat(ln);
-                standardCode = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+                const lat = parseFloat(la);
+                const lng = parseFloat(ln);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    newCases.push({
+                        code: `${lat.toFixed(5)},${lng.toFixed(5)}`,
+                        rawName: parts.filter(p => p !== coordPart).join(' ') || `案件 ${parsedCases.length + newCases.length + 1}`,
+                        lat: lat,
+                        lng: lng,
+                        road: ''
+                    });
+                }
             }
-
-            if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-                parsedCases.push({
-                    displayIndex: parsedCases.length + 1,
-                    code: standardCode,
-                    rawName: rawName,
-                    lat: lat,
-                    lng: lng,
-                    road: ''
-                });
-            }
-        }
-
-        refreshMarkersAndList();
-
-        parsedCases.forEach((c) => {
-            fetchRoadName(c.lat, c.lng).then(road => {
-                c.road = road;
-                refreshMarkersAndList();
-            });
         });
 
-        if (parsedCases.length > 0) {
+        if (newCases.length > 0) {
+            newCases.forEach(item => {
+                if (!parsedCases.some(c => c.code === item.code)) {
+                    item.displayIndex = parsedCases.length + 1;
+                    parsedCases.push(item);
+                }
+            });
+
+            // 回填 textarea
+            document.getElementById('input').value = parsedCases.map(c => `${c.rawName} ${c.code}`).join('\n');
+
+            refreshMarkersAndList();
+
+            // 背景非同步自動補齊路名
+            parsedCases.forEach((c) => {
+                if (!c.road) {
+                    fetchRoadName(c.lat, c.lng).then(road => {
+                        if (road) {
+                            c.road = road;
+                            refreshMarkersAndList();
+                        }
+                    });
+                }
+            });
+
             const allBounds = parsedCases.map(c => [c.lat, c.lng]);
             baseLocations.forEach(loc => allBounds.push([loc.lat, loc.lng]));
             map.fitBounds(allBounds, { padding: [40, 40] });
-        }
 
-        if (autoCloseOnMobile && window.innerWidth <= 768) {
-            closeMobileSidebar();
+            if (window.innerWidth <= 768) closeMobileSidebar();
         }
+    }
+
+    async function triggerSmartImport() {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text && text.trim()) {
+                processTextContent(text);
+                const btn = document.getElementById('btnClipboardImport');
+                btn.innerText = '✓ 剪貼簿匯入成功！';
+                setTimeout(() => { btn.innerText = '📋 一鍵匯入派工單 (讀取剪貼簿)'; }, 1500);
+                return;
+            }
+        } catch (err) {
+            console.warn("無法直接讀取剪貼簿，改開啟多行貼上視窗:", err);
+        }
+        showMultilineInputModal();
+    }
+
+    function showMultilineInputModal() {
+        let modal = document.getElementById('manual-paste-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'manual-paste-modal';
+            modal.style.cssText = `
+                position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+                z-index: 2000; display: flex; align-items: center; justify-content: center;
+                padding: 16px; backdrop-filter: blur(4px);
+            `;
+            modal.innerHTML = `
+                <div style="background: #1e293b; border: 1px solid #475569; border-radius: 12px; width: 100%; max-width: 480px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="font-weight: bold; color: #38bdf8; font-size: 1rem;">📋 貼上派工單文字 (支援全篇文字辨識)</div>
+                    <textarea id="paste-textarea" style="width: 100%; height: 160px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #facc15; font-family: monospace; font-size: 0.9rem; padding: 8px; resize: none; outline: none;" placeholder="把整段圈選的派工單內容貼在此處..."></textarea>
+                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                        <button id="btn-cancel-paste" style="background: #475569; border: none; color: #fff; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;">取消</button>
+                        <button id="btn-confirm-paste" style="background: #2563eb; border: none; color: #fff; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">解析匯入</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('btn-cancel-paste').onclick = () => { modal.style.display = 'none'; };
+            document.getElementById('btn-confirm-paste').onclick = () => {
+                const val = document.getElementById('paste-textarea').value;
+                modal.style.display = 'none';
+                document.getElementById('paste-textarea').value = '';
+                processTextContent(val);
+            };
+        }
+        modal.style.display = 'flex';
+        setTimeout(() => document.getElementById('paste-textarea').focus(), 100);
+    }
+
+    async function renderMarkers(autoCloseOnMobile = false) {
+        parsedCases = [];
+        const content = document.getElementById('input').value;
+        processTextContent(content);
+        if (autoCloseOnMobile && window.innerWidth <= 768) closeMobileSidebar();
     }
 
     function copySortedList() {
