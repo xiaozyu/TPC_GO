@@ -118,6 +118,7 @@
             cursor: pointer;
         }
 
+        /* 標籤樣式：pointer-events auto 讓文字標籤可被點擊 */
         .case-label-large {
             background: rgba(220, 38, 38, 0.95);
             border: 2px solid #ffffff;
@@ -128,7 +129,7 @@
             border-radius: 6px;
             box-shadow: 0 3px 8px rgba(0,0,0,0.4);
             white-space: nowrap;
-            cursor: pointer;
+            cursor: pointer !important;
             pointer-events: auto !important;
         }
         .case-road-text { color: #fef08a; font-weight: bold; font-size: 11px; margin-left: 4px; }
@@ -137,11 +138,13 @@
             background: rgba(15, 23, 42, 0.9);
             border: 1px solid #475569;
             color: #f1f5f9;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: bold;
-            padding: 2px 5px;
+            padding: 3px 6px;
             border-radius: 4px;
             white-space: nowrap;
+            cursor: pointer !important;
+            pointer-events: auto !important;
         }
 
         .inspect-label {
@@ -154,6 +157,8 @@
             border-radius: 6px;
             box-shadow: 0 3px 8px rgba(0,0,0,0.4);
             white-space: nowrap;
+            cursor: pointer !important;
+            pointer-events: auto !important;
         }
 
         @media (max-width: 768px) {
@@ -187,7 +192,7 @@
         <span style="font-size:12px;color:#9ca3af;cursor:pointer;" onclick="closeMobileSidebar()">✕ 關閉收合</span>
     </div>
 
-    <div style="font-size:11px;color:#9ca3af;line-height:1.3;">未打G自動補G。<b>長按道路 0.5 秒查圖號/路名並複製</b></div>
+    <div style="font-size:11px;color:#9ca3af;line-height:1.3;">未打G自動補G。<b>點字體或圖釘均可直接導航/排序</b></div>
 
     <textarea id="input" placeholder="貼上今日案件：
 青年路50號邊 G4263SA49
@@ -223,13 +228,11 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --- 註冊實體 Service Worker ---
     let deferredPrompt = null;
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 
-    // 監聽 PWA 安裝事件
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
@@ -252,6 +255,10 @@
     }
     function closeMobileSidebar() {
         document.getElementById('sidebar').classList.remove('mobile-open');
+    }
+
+    function openGoogleMaps(lat, lng) {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
     }
 
     const googleRoads = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
@@ -298,13 +305,23 @@
             })
         }).addTo(map);
 
-        marker.bindTooltip(loc.name, { permanent: true, direction: 'bottom', offset: [0, 4], className: 'base-label' });
+        const tooltip = marker.bindTooltip(loc.name, { 
+            permanent: true, 
+            direction: 'bottom', 
+            offset: [0, 4], 
+            className: 'base-label',
+            interactive: true 
+        });
 
-        const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
+        // 點擊文字標籤直接開啟氣泡選單
+        tooltip.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            marker.openPopup();
+        });
+
         marker.bindPopup(`
             <b style="font-size:14px;color:#1e293b;">【${loc.desc}】${loc.name}</b><br><br>
-            <button onclick="calculateRoute(${loc.lat}, ${loc.lng}, '${loc.name}')" style="background:#2563eb;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🧭 規劃路線到此點</button>
-            <a href="${googleNavUrl}" target="_blank" style="color:#2563eb;font-size:12px;text-decoration:none;">開啟 Google Maps 導航</a>
+            <button onclick="openGoogleMaps(${loc.lat}, ${loc.lng})" style="background:#2563eb;padding:9px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:13px;">🧭 開啟 Google Maps 導航</button>
         `);
         baseMarkers.push(marker);
     });
@@ -312,7 +329,6 @@
     let userLatLng = null;
     let userMarker = null;
     let userCircle = null;
-    let routeLayer = null;
     let inspectMarker = null;
     let parsedCases = [];
     let isTapSortMode = false;
@@ -352,7 +368,7 @@
         const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
         
         const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
-        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 / 32;
         const j3 = 151 * e1 * e1 * e1 / 96;
         
         const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
@@ -464,8 +480,13 @@
                     userMarker = L.circleMarker(userLatLng, { radius: 9, color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).addTo(map);
                 }
                 
-                userMarker.bindTooltip(`<b>目前位置</b><br><span style="color:#facc15;font-weight:bold;font-size:12px;">${myCode}</span>`, { 
-                    permanent: true, direction: 'top', offset: [0, -10], className: 'base-label' 
+                const myTooltip = userMarker.bindTooltip(`<b>目前位置</b><br><span style="color:#facc15;font-weight:bold;font-size:12px;">${myCode}</span>`, { 
+                    permanent: true, direction: 'top', offset: [0, -10], className: 'base-label', interactive: true 
+                });
+
+                myTooltip.on('click', (e) => {
+                    L.DomEvent.stopPropagation(e);
+                    userMarker.openPopup();
                 });
 
                 userMarker.bindPopup(`
@@ -508,11 +529,17 @@
             const road = await fetchRoadName(lat, lng);
             const roadText = road ? ` | ${road}` : '';
 
-            inspectMarker.bindTooltip(`<b>${code}</b> (已複製)<span style="color:#fef08a;font-size:11px;">${roadText}</span>`, {
+            const inspTooltip = inspectMarker.bindTooltip(`<b>${code}</b> (已複製)<span style="color:#fef08a;font-size:11px;">${roadText}</span>`, {
                 permanent: true,
                 direction: 'top',
                 offset: [0, -12],
-                className: 'inspect-label'
+                className: 'inspect-label',
+                interactive: true
+            });
+
+            inspTooltip.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
+                inspectMarker.openPopup();
             });
 
             inspectMarker.bindPopup(`
@@ -520,7 +547,7 @@
                 ${road ? `路名: <b>${road}</b><br>` : ''}
                 台電圖號: <b style="color:#7e22ce;font-size:15px;">${code}</b> (已自動複製)<br>
                 坐標: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br><br>
-                <button onclick="calculateRoute(${lat}, ${lng}, '${code}')" style="background:#2563eb;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🧭 規劃路線到此點</button>
+                <button onclick="openGoogleMaps(${lat}, ${lng})" style="background:#2563eb;padding:9px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:13px;margin-bottom:6px;">🧭 開啟 Google Maps 導航</button>
                 <button onclick="silentCopy('${code}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">📋 再次複製圖號</button>
             `).openPopup();
 
@@ -546,39 +573,6 @@
     });
     map.on('touchend', cancelLongPress);
     map.on('touchmove', cancelLongPress);
-
-    async function calculateRoute(destLat, destLng, destName) {
-        if (!userLatLng) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    userLatLng = [pos.coords.latitude, pos.coords.longitude];
-                    calculateRoute(destLat, destLng, destName);
-                },
-                () => {},
-                { enableHighAccuracy: true }
-            );
-            return;
-        }
-
-        const url = `https://router.project-osrm.org/route/v1/driving/${userLatLng[1]},${userLatLng[0]};${destLng},${destLat}?overview=full&geometries=geojson`;
-        
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            if (!data.routes || data.routes.length === 0) return;
-
-            const route = data.routes[0];
-            const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
-
-            if (routeLayer) map.removeLayer(routeLayer);
-
-            routeLayer = L.polyline(coords, { color: '#2563eb', weight: 6, opacity: 0.85 }).addTo(map);
-            map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
-
-            map.closePopup();
-            closeMobileSidebar();
-        } catch (e) {}
-    }
 
     let markersLayer = L.layerGroup().addTo(map);
 
@@ -676,6 +670,7 @@
             }).addTo(markersLayer);
             c.marker = marker;
 
+            // 點擊圖釘本體
             marker.on('click', (e) => {
                 if (isTapSortMode) {
                     L.DomEvent.stopPropagation(e);
@@ -686,6 +681,7 @@
             const title = `案件 ${c.displayIndex}`;
             const roadLabel = c.road ? ` | ${c.road}` : '';
 
+            // 綁定字體 Tooltip 並使其直接能觸發點擊
             const tooltip = marker.bindTooltip(`<b>${title}</b> ${c.code}<span class="case-road-text">${roadLabel}</span>`, {
                 permanent: true,
                 direction: 'top',
@@ -694,23 +690,22 @@
                 interactive: true
             });
 
+            // 關鍵修正：直接在 Tooltip 上監聽點擊事件
             tooltip.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
                 if (isTapSortMode) {
-                    L.DomEvent.stopPropagation(e);
                     handleCaseMarkerClick(c);
                 } else {
                     marker.openPopup();
                 }
             });
 
-            const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`;
             marker.bindPopup(`
                 <b style="font-size:15px;color:#dc2626;">${title} (${c.rawName})</b><br>
                 ${c.road ? `<b>路名: ${c.road}</b><br>` : ''}
                 圖號: <b>${c.code}</b><br>
                 坐標: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}<br><br>
-                <button onclick="calculateRoute(${c.lat}, ${c.lng}, '${title}')" style="background:#2563eb;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🧭 規劃路線到此案件</button>
-                <a href="${googleNavUrl}" target="_blank" style="color:#2563eb;font-size:12px;text-decoration:none;">開啟 Google Maps 導航</a>
+                <button onclick="openGoogleMaps(${c.lat}, ${c.lng})" style="background:#dc2626;padding:9px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:13px;">🧭 開啟 Google Maps 導航</button>
             `);
 
             const item = document.createElement('div');
@@ -809,7 +804,6 @@
 
     function clearAll() {
         markersLayer.clearLayers();
-        if (routeLayer) map.removeLayer(routeLayer);
         if (inspectMarker) map.removeLayer(inspectMarker);
         parsedCases = [];
         document.getElementById('input').value = '';
