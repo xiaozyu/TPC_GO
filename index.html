@@ -10,7 +10,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { display: flex; height: 100dvh; width: 100vw; overflow: hidden; position: relative; background: #212529; }
 
-        /* 左側欄：深色高對比專業風 */
         #sidebar { 
             width: 360px; 
             background: #1e1e24; 
@@ -63,7 +62,6 @@
         .copy-btn { background: #16a34a; }
         .clear-btn { background: #4b5563; padding: 5px; font-size: 11px; }
 
-        /* 常駐點小快捷列 */
         .quick-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #333; padding-top: 6px; }
         .quick-btn { background: #2b2b36; color: #cbd5e1; font-size: 11px; padding: 5px 2px; border: 1px solid #444; border-radius: 4px; }
 
@@ -85,26 +83,6 @@
         }
         .drag-handle { cursor: grab; color: #9ca3af; font-size: 16px; margin-right: 8px; }
 
-        /* 頂部路線提示 */
-        #routeInfo {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.95);
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: bold;
-            z-index: 1002;
-            display: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            white-space: nowrap;
-        }
-        #routeInfo span { color: #facc15; }
-
-        /* 右側浮動按鈕群 */
         .floating-controls {
             position: absolute;
             bottom: 20px;
@@ -119,28 +97,29 @@
             color: #111;
             border: 1px solid #ccc;
             border-radius: 50%;
-            width: 46px;
-            height: 46px;
+            width: 48px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             box-shadow: 0 3px 10px rgba(0,0,0,0.35);
             cursor: pointer;
         }
 
-        /* 標籤樣式 */
         .case-label-large {
             background: rgba(220, 38, 38, 0.95);
             border: 2px solid #ffffff;
             color: #ffffff;
             font-size: 13px;
             font-weight: 800;
-            padding: 3px 7px;
+            padding: 4px 8px;
             border-radius: 6px;
             box-shadow: 0 3px 8px rgba(0,0,0,0.4);
             white-space: nowrap;
+            cursor: pointer;
+            pointer-events: auto !important;
         }
         .case-road-text { color: #fef08a; font-weight: bold; font-size: 11px; margin-left: 4px; }
 
@@ -155,7 +134,18 @@
             white-space: nowrap;
         }
 
-        /* 手機模式：浮層抽屜式切換，徹底釋放地圖 */
+        .inspect-label {
+            background: rgba(126, 34, 206, 0.95);
+            border: 2px solid #ffffff;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 6px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+            white-space: nowrap;
+        }
+
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #sidebar {
@@ -181,26 +171,23 @@
 </head>
 <body>
 
-<div id="routeInfo">導航路徑：<span id="routeDist">0 km</span> | 車程預估：<span id="routeTime">0 分鐘</span></div>
-
 <div id="sidebar">
     <div class="header-box">
         <h3>⚡ TPC_GO 排工導航盤</h3>
         <span style="font-size:12px;color:#9ca3af;cursor:pointer;" onclick="closeMobileSidebar()">✕ 關閉收合</span>
     </div>
 
-    <div style="font-size:11px;color:#9ca3af;line-height:1.3;">未打G自動補G、支援S偏移。<b>可按住 ☰ 或點圖排工</b></div>
+    <div style="font-size:11px;color:#9ca3af;line-height:1.3;">未打G自動補G。<b>長按道路 0.5 秒查圖號/路名並複製</b></div>
 
     <textarea id="input" placeholder="貼上今日案件：
-4143ae57
-g4464sa97
-4464sa97
-g3759aa7788"></textarea>
+青年路50號邊 G4263SA49
+六路十五街35號對面 G4458HA31
+型份東段781-5地號 G4764AA87"></textarea>
 
     <div class="btn-group">
         <button onclick="renderMarkers(true)">在地圖上標記點位</button>
         <button id="tapSortBtn" class="mode-btn" onclick="toggleTapSortMode()">👆 點圖自動排工順序 (已關閉)</button>
-        <button class="copy-btn" onclick="copySortedList()">📋 複製已排案件清單</button>
+        <button id="copyBtn" class="copy-btn" onclick="copySortedList()">📋 複製已排案件清單</button>
         <button class="clear-btn" onclick="clearAll()">清空重填</button>
     </div>
 
@@ -210,7 +197,7 @@ g3759aa7788"></textarea>
         <button class="quick-btn" onclick="locateBase(2)">南勢溪公園</button>
         <button class="quick-btn" onclick="locateBase(3)">萬興陸橋</button>
         <button class="quick-btn" onclick="locateBase(4)">中華向上陸橋</button>
-        <button class="quick-btn" onclick="locateBase(5)">國三沙田交叉</button>
+        <button class="quick-btn" onclick="locateBase(5)">沙田國三交叉</button>
     </div>
 
     <div id="list"></div>
@@ -218,10 +205,9 @@ g3759aa7788"></textarea>
 
 <div id="map"></div>
 
-<!-- 右側浮動快捷按鈕群 (手機電腦皆順手) -->
 <div class="floating-controls">
     <div class="float-btn mobile-toggle-btn" onclick="toggleMobileSidebar()" title="案件選單">📋</div>
-    <div class="float-btn" onclick="locateUser()" title="定位目前位置">📍</div>
+    <div class="float-btn" onclick="locateUser()" title="定位目前位置與圖號">📍</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -246,8 +232,8 @@ g3759aa7788"></textarea>
     });
 
     const map = L.map('map', {
-        center: [24.2100, 120.5500],
-        zoom: 12,
+        center: [24.2200, 120.5500],
+        zoom: 13,
         zoomControl: false,
         layers: [googleRoads]
     });
@@ -255,14 +241,13 @@ g3759aa7788"></textarea>
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
-    // 精準校正後的 6 大常駐固定點
     const baseLocations = [
-        { name: "龍井服務所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務點" },
-        { name: "沙鹿服務所", lat: 24.23078, lng: 120.56306, color: "green", desc: "公務點" },
-        { name: "南勢溪公園", lat: 24.22550, lng: 120.57077, color: "orange", desc: "午休點" },
-        { name: "萬興陸橋", lat: 24.15930, lng: 120.54470, color: "orange", desc: "午休點" },
-        { name: "中華向上陸橋", lat: 24.21520, lng: 120.53680, color: "orange", desc: "午休點" },
-        { name: "沙田國三交叉", lat: 24.15280, lng: 120.54220, color: "orange", desc: "停駐點" }
+        { name: "龍井服務所", lat: 24.193150, lng: 120.546019, color: "green", desc: "公務點" },
+        { name: "沙鹿服務所", lat: 24.230309, lng: 120.565418, color: "green", desc: "公務點" },
+        { name: "南勢溪公園", lat: 24.215784, lng: 120.564731, color: "orange", desc: "午休點" },
+        { name: "萬興陸橋", lat: 24.169068, lng: 120.535600, color: "orange", desc: "午休點" },
+        { name: "中華向上陸橋", lat: 24.217655, lng: 120.544649, color: "orange", desc: "午休點" },
+        { name: "沙田國三交叉", lat: 24.173208, lng: 120.543228, color: "orange", desc: "停駐點" }
     ];
 
     const baseMarkers = [];
@@ -293,88 +278,239 @@ g3759aa7788"></textarea>
     let userMarker = null;
     let userCircle = null;
     let routeLayer = null;
+    let inspectMarker = null;
     let parsedCases = [];
     let isTapSortMode = false;
     let tapSortedOrder = [];
 
-    // 切換「點圖自動排序」模式
-    function toggleTapSortMode() {
-        if (parsedCases.length === 0) {
-            alert("地圖上尚無案件，請先輸入並標記！");
-            return;
-        }
-        isTapSortMode = !isTapSortMode;
-        const btn = document.getElementById('tapSortBtn');
-        if (isTapSortMode) {
-            tapSortedOrder = [];
-            btn.classList.add('active');
-            btn.innerText = '🎯 依序點擊地圖上的紅點排工...';
-            closeMobileSidebar();
-        } else {
-            btn.classList.remove('active');
-            btn.innerText = '👆 點圖自動排工順序 (已關閉)';
-        }
+    function wgs84ToTWD97(lat, lon) {
+        const a = 6378137.0, b = 6356752.314245;
+        const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
+        const e = Math.sqrt(1 - (b * b) / (a * a)), e2 = e * e / (1 - e * e);
+
+        const phi = lat * Math.PI / 180;
+        const lam = lon * Math.PI / 180;
+
+        const n = a / Math.sqrt(1 - e * e * Math.sin(phi) * Math.sin(phi));
+        const t = Math.tan(phi) * Math.tan(phi);
+        const c = e2 * Math.cos(phi) * Math.cos(phi);
+        const A_val = (lam - lon0) * Math.cos(phi);
+
+        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256) * phi
+            - (3 * e * e / 8 + 3 * Math.pow(e, 4) / 32 + 45 * Math.pow(e, 6) / 1024) * Math.sin(2 * phi)
+            + (15 * Math.pow(e, 4) / 256 + 45 * Math.pow(e, 6) / 1024) * Math.sin(4 * phi)
+            - (35 * Math.pow(e, 6) / 3072) * Math.sin(6 * phi));
+
+        const x = dx + k0 * n * (A_val + (1 - t + c) * Math.pow(A_val, 3) / 6 + (5 - 18 * t + t * t + 72 * c - 58 * e2) * Math.pow(A_val, 5) / 120);
+        const y = k0 * (M + n * Math.tan(phi) * (A_val * A_val / 2 + (5 - t + 9 * c + 4 * c * c) * Math.pow(A_val, 4) / 24 + (61 - 58 * t + t * t + 600 * c - 330 * e2) * Math.pow(A_val, 6) / 720));
+        return { x, y };
     }
 
-    // 處理點擊案件紅點時的排序行為
-    function handleCaseMarkerClick(caseItem) {
-        if (!isTapSortMode) return false;
-
-        if (tapSortedOrder.includes(caseItem)) {
-            alert(`該案件已經是「案件 ${caseItem.displayIndex}」，請點擊其他案件繼續排序。`);
-            return true;
-        }
-
-        tapSortedOrder.push(caseItem);
-        caseItem.displayIndex = tapSortedOrder.length;
-
-        // 如果全部都點擊完成了，自動退出排序模式
-        if (tapSortedOrder.length === parsedCases.length) {
-            parsedCases = [...tapSortedOrder];
-            toggleTapSortMode();
-            alert("🎉 所有案件已依您的點擊順序完成重新排序！");
-        } else {
-            // 把尚未點到的案件排到後面
-            const remaining = parsedCases.filter(c => !tapSortedOrder.includes(c));
-            remaining.forEach((c, idx) => { c.displayIndex = tapSortedOrder.length + idx + 1; });
-            parsedCases = [...tapSortedOrder, ...remaining];
-        }
-
-        refreshMarkersAndList();
-        return true;
+    function twd97ToWGS84(x, y) {
+        const a = 6378137.0, b = 6356752.314245;
+        const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
+        const e = Math.sqrt(1 - (b * b) / (a * a)), e2 = e * e / (1 - e * e);
+        
+        x = x - dx;
+        const m = y / k0;
+        const mu = m / (a * (1 - e * e / 4 - 3 * e * e * e * e / 64 - 5 * e * e * e * e * e * e / 256));
+        const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
+        
+        const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 / 32;
+        const j3 = 151 * e1 * e1 * e1 / 96;
+        
+        const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
+        const c1 = e2 * Math.cos(fp) * Math.cos(fp);
+        const t1 = Math.tan(fp) * Math.tan(fp);
+        const r1 = a * (1 - e * e) / Math.pow(1 - e * e * Math.sin(fp) * Math.sin(fp), 1.5);
+        const n1 = a / Math.sqrt(1 - e * e * Math.sin(fp) * Math.sin(fp));
+        const d = x / (n1 * k0);
+        
+        const lat = fp - (n1 * Math.tan(fp) / r1) * (d * d / 2 - (5 + 3 * t1 + 10 * c1 - 4 * c1 * c1 - 9 * e2) * d * d * d * d / 24);
+        const lon = lon0 + (d - (1 + 2 * t1 + c1) * d * d * d / 6) / Math.cos(fp);
+        return { lat: lat * 180 / Math.PI, lng: lon * 180 / Math.PI };
     }
 
-    function locateBase(index) {
-        const target = baseLocations[index];
-        map.flyTo([target.lat, target.lng], 16);
-        baseMarkers[index].openPopup();
-        closeMobileSidebar();
+    function coordToPowerCode(lat, lng) {
+        const pt97 = wgs84ToTWD97(lat, lng);
+        const x67 = pt97.x - 828;
+        const y67 = pt97.y + 207;
+
+        const originX = 170000;
+        const originY = 2650000;
+
+        let dx = x67 - originX;
+        let dy = y67 - originY;
+
+        let xMap = Math.floor(dx / 800);
+        let yMap = Math.floor(dy / 500);
+
+        let remX = dx - xMap * 800;
+        let remY = dy - yMap * 500;
+
+        let subXIndex = Math.floor(remX / 100);
+        let subYIndex = Math.floor(remY / 100);
+
+        let subX = String.fromCharCode(65 + Math.min(Math.max(subXIndex, 0), 7));
+        let subY = String.fromCharCode(65 + Math.min(Math.max(subYIndex, 0), 4));
+
+        let ptX = Math.floor((remX - subXIndex * 100) / 10);
+        let ptY = Math.floor((remY - subYIndex * 100) / 10);
+
+        const pad2 = (n) => String(Math.max(0, n)).padStart(2, '0');
+        return `G${pad2(xMap)}${pad2(yMap)}${subX}${subY}${Math.min(Math.max(ptX, 0), 9)}${Math.min(Math.max(ptY, 0), 9)}`;
+    }
+
+    function parsePowerCoord(codeStr) {
+        let cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
+        if (/^\d{4}[A-Z]{2}(\d{2}|\d{4})$/.test(cleaned)) {
+            cleaned = 'G' + cleaned;
+        }
+
+        const match = cleaned.match(/^([A-HJ-Z])(\d{2})(\d{2})([A-Z])([A-Z])(\d{2}|\d{4})$/);
+        if (!match) return null;
+
+        const [_, zone, xMap, yMap, subX, subY, pt] = match;
+
+        const originMap = {
+            'A': [170000, 2750000], 'B': [250000, 2750000],
+            'C': [170000, 2700000], 'D': [250000, 2700000],
+            'E': [170000, 2650000], 'F': [250000, 2650000],
+            'G': [170000, 2650000], 'H': [250000, 2600000]
+        };
+
+        const baseOrigin = originMap[zone] || [170000, 2650000];
+        let twd67X = baseOrigin[0] + parseInt(xMap, 10) * 800;
+        let twd67Y = baseOrigin[1] + parseInt(yMap, 10) * 500;
+
+        twd67X += (subX.charCodeAt(0) - 65) * 100;
+        twd67Y += (subY.charCodeAt(0) - 65) * 100;
+
+        if (pt.length === 2) {
+            twd67X += parseInt(pt[0], 10) * 10 + 5;
+            twd67Y += parseInt(pt[1], 10) * 10 + 5;
+        } else if (pt.length === 4) {
+            twd67X += parseInt(pt.substring(0, 2), 10);
+            twd67Y += parseInt(pt.substring(2, 4), 10);
+        }
+
+        const twd97X = twd67X + 828;
+        const twd97Y = twd67Y - 207;
+
+        return { ...twd97ToWGS84(twd97X, twd97Y), standardCode: cleaned };
+    }
+
+    function silentCopy(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).catch(() => {});
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
     }
 
     function locateUser() {
-        if (!navigator.geolocation) {
-            alert("您的設備不支援定位功能");
-            return;
-        }
+        if (!navigator.geolocation) return;
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 userLatLng = [pos.coords.latitude, pos.coords.longitude];
+                const myCode = coordToPowerCode(userLatLng[0], userLatLng[1]);
+
                 if (userMarker) {
                     userMarker.setLatLng(userLatLng);
                     userCircle.setLatLng(userLatLng);
                 } else {
                     userCircle = L.circle(userLatLng, { radius: pos.coords.accuracy || 30, color: '#2563eb', fillColor: '#2563eb', fillOpacity: 0.15 }).addTo(map);
-                    userMarker = L.circleMarker(userLatLng, { radius: 8, color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).addTo(map);
-                    userMarker.bindTooltip("<b>我的位置</b>", { permanent: false, direction: 'top' });
+                    userMarker = L.circleMarker(userLatLng, { radius: 9, color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).addTo(map);
                 }
-                map.flyTo(userLatLng, 16);
+                
+                userMarker.bindTooltip(`<b>目前位置</b><br><span style="color:#facc15;font-weight:bold;font-size:12px;">${myCode}</span>`, { 
+                    permanent: true, direction: 'top', offset: [0, -10], className: 'base-label' 
+                });
+
+                userMarker.bindPopup(`
+                    <b>📍 我的目前位置</b><br>
+                    台電圖號: <b>${myCode}</b><br>
+                    坐標: ${userLatLng[0].toFixed(5)}, ${userLatLng[1].toFixed(5)}<br><br>
+                    <button onclick="silentCopy('${myCode}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">📋 複製圖號</button>
+                `).openPopup();
+
+                map.flyTo(userLatLng, 17);
             },
-            (err) => {
-                alert("無法取得 GPS 定位，請確認手機已開啟定位權限。");
-            },
+            () => {},
             { enableHighAccuracy: true, timeout: 10000 }
         );
     }
+
+    let pressTimer = null;
+    function startLongPress(latlng) {
+        cancelLongPress();
+        pressTimer = setTimeout(async () => {
+            const lat = latlng.lat;
+            const lng = latlng.lng;
+            const code = coordToPowerCode(lat, lng);
+
+            silentCopy(code);
+
+            if (inspectMarker) map.removeLayer(inspectMarker);
+
+            inspectMarker = L.marker([lat, lng], {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(map);
+
+            const road = await fetchRoadName(lat, lng);
+            const roadText = road ? ` | ${road}` : '';
+
+            inspectMarker.bindTooltip(`<b>${code}</b> (已複製)<span style="color:#fef08a;font-size:11px;">${roadText}</span>`, {
+                permanent: true,
+                direction: 'top',
+                offset: [0, -12],
+                className: 'inspect-label'
+            });
+
+            inspectMarker.bindPopup(`
+                <b>🔍 點位圖號解析</b><br>
+                ${road ? `路名: <b>${road}</b><br>` : ''}
+                台電圖號: <b style="color:#7e22ce;font-size:15px;">${code}</b> (已自動複製)<br>
+                坐標: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br><br>
+                <button onclick="calculateRoute(${lat}, ${lng}, '${code}')" style="background:#2563eb;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">🧭 規劃路線到此點</button>
+                <button onclick="silentCopy('${code}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">📋 再次複製圖號</button>
+            `).openPopup();
+
+        }, 500);
+    }
+
+    function cancelLongPress() {
+        if (pressTimer) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+        }
+    }
+
+    map.on('mousedown', (e) => startLongPress(e.latlng));
+    map.on('mouseup', cancelLongPress);
+    map.on('mousemove', cancelLongPress);
+    map.on('touchstart', (e) => {
+        if (e.touches && e.touches.length === 1) {
+            const touch = e.touches[0];
+            const pt = map.mouseEventToLatLng(touch);
+            startLongPress(pt);
+        }
+    });
+    map.on('touchend', cancelLongPress);
+    map.on('touchmove', cancelLongPress);
 
     async function calculateRoute(destLat, destLng, destName) {
         if (!userLatLng) {
@@ -383,9 +519,7 @@ g3759aa7788"></textarea>
                     userLatLng = [pos.coords.latitude, pos.coords.longitude];
                     calculateRoute(destLat, destLng, destName);
                 },
-                () => {
-                    alert("請先點擊右下角 📍 我的位置 定位起點！");
-                },
+                () => {},
                 { enableHighAccuracy: true }
             );
             return;
@@ -396,10 +530,7 @@ g3759aa7788"></textarea>
         try {
             const res = await fetch(url);
             const data = await res.json();
-            if (!data.routes || data.routes.length === 0) {
-                alert("無法規劃該點路線！");
-                return;
-            }
+            if (!data.routes || data.routes.length === 0) return;
 
             const route = data.routes[0];
             const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
@@ -409,23 +540,48 @@ g3759aa7788"></textarea>
             routeLayer = L.polyline(coords, { color: '#2563eb', weight: 6, opacity: 0.85 }).addTo(map);
             map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
 
-            const distKm = (route.distance / 1000).toFixed(1);
-            const durationMin = Math.round(route.duration / 60);
-            
-            document.getElementById('routeDist').innerText = `${distKm} km (${destName})`;
-            document.getElementById('routeTime').innerText = `${durationMin} 分鐘`;
-            document.getElementById('routeInfo').style.display = 'block';
-
             map.closePopup();
             closeMobileSidebar();
-        } catch (e) {
-            alert("路線計算服務暫時無法連線");
-        }
+        } catch (e) {}
     }
 
     let markersLayer = L.layerGroup().addTo(map);
 
-    // 清單拖曳排序 (Sortable)
+    function toggleTapSortMode() {
+        if (parsedCases.length === 0) return;
+        isTapSortMode = !isTapSortMode;
+        const btn = document.getElementById('tapSortBtn');
+        if (isTapSortMode) {
+            tapSortedOrder = [];
+            btn.classList.add('active');
+            btn.innerText = '🎯 依序點擊地圖紅點或文字排工...';
+            closeMobileSidebar();
+        } else {
+            btn.classList.remove('active');
+            btn.innerText = '👆 點圖自動排工順序 (已關閉)';
+        }
+    }
+
+    function handleCaseMarkerClick(caseItem) {
+        if (!isTapSortMode) return false;
+        if (tapSortedOrder.includes(caseItem)) return true;
+
+        tapSortedOrder.push(caseItem);
+        caseItem.displayIndex = tapSortedOrder.length;
+
+        if (tapSortedOrder.length === parsedCases.length) {
+            parsedCases = [...tapSortedOrder];
+            toggleTapSortMode();
+        } else {
+            const remaining = parsedCases.filter(c => !tapSortedOrder.includes(c));
+            remaining.forEach((c, idx) => { c.displayIndex = tapSortedOrder.length + idx + 1; });
+            parsedCases = [...tapSortedOrder, ...remaining];
+        }
+
+        refreshMarkersAndList();
+        return true;
+    }
+
     const listContainer = document.getElementById('list');
     Sortable.create(listContainer, {
         handle: '.drag-handle',
@@ -444,6 +600,13 @@ g3759aa7788"></textarea>
         }
     });
 
+    function locateBase(index) {
+        const target = baseLocations[index];
+        map.flyTo([target.lat, target.lng], 16);
+        baseMarkers[index].openPopup();
+        closeMobileSidebar();
+    }
+
     async function fetchRoadName(lat, lng) {
         try {
             const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
@@ -455,67 +618,6 @@ g3759aa7788"></textarea>
         } catch (e) {
             return '';
         }
-    }
-
-    function twd97ToWGS84(x, y) {
-        const a = 6378137.0, b = 6356752.314245;
-        const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
-        const e = Math.sqrt(1 - (b * b) / (a * a)), e2 = e * e / (1 - e * e);
-        
-        x = x - dx;
-        const m = y / k0;
-        const mu = m / (a * (1 - e * e / 4 - 3 * e * e * e * e / 64 - 5 * e * e * e * e * e * e / 256));
-        const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
-        
-        const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
-        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
-        const j3 = 151 * e1 * e1 * e1 / 96;
-        
-        const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
-        const c1 = e2 * Math.cos(fp) * Math.cos(fp);
-        const t1 = Math.tan(fp) * Math.tan(fp);
-        const r1 = a * (1 - e * e) / Math.pow(1 - e * e * Math.sin(fp) * Math.sin(fp), 1.5);
-        const n1 = a / Math.sqrt(1 - e * e * Math.sin(fp) * Math.sin(fp));
-        const d = x / (n1 * k0);
-        
-        const lat = fp - (n1 * Math.tan(fp) / r1) * (d * d / 2 - (5 + 3 * t1 + 10 * c1 - 4 * c1 * c1 - 9 * e2) * d * d * d * d / 24);
-        const lon = lon0 + (d - (1 + 2 * t1 + c1) * d * d * d / 6) / Math.cos(fp);
-        return { lat: lat * 180 / Math.PI, lng: lon * 180 / Math.PI };
-    }
-
-    function parsePowerCoord(codeStr) {
-        let cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
-        if (/^\d{4}[A-Z]{2}(\d{2}|\d{4})$/.test(cleaned)) {
-            cleaned = 'G' + cleaned;
-        }
-
-        const match = cleaned.match(/^([A-HJ-Z])(\d{2})(\d{2})([A-Z])([A-Z])(\d{2}|\d{4})$/);
-        if (!match) return null;
-
-        const [_, zone, xMap, yMap, subX, subY, pt] = match;
-        const originMap = {
-            'A': [170000, 2750000], 'B': [250000, 2750000],
-            'C': [170000, 2700000], 'D': [250000, 2700000],
-            'E': [170000, 2650000], 'F': [250000, 2650000],
-            'G': [170000, 2650000], 'H': [250000, 2600000]
-        };
-
-        const baseOrigin = originMap[zone] || [170000, 2650000];
-        let twdX = baseOrigin[0] + parseInt(xMap, 10) * 800;
-        let twdY = baseOrigin[1] + parseInt(yMap, 10) * 500;
-
-        twdX += (subX.charCodeAt(0) - 65) * 100;
-        twdY += (subY.charCodeAt(0) - 65) * 100;
-
-        if (pt.length === 2) {
-            twdX += parseInt(pt[0], 10) * 10;
-            twdY += parseInt(pt[1], 10) * 10;
-        } else if (pt.length === 4) {
-            twdX += parseInt(pt.substring(0, 2), 10);
-            twdY += parseInt(pt.substring(2, 4), 10);
-        }
-
-        return { ...twd97ToWGS84(twdX, twdY), standardCode: cleaned };
     }
 
     function refreshMarkersAndList() {
@@ -539,7 +641,6 @@ g3759aa7788"></textarea>
             }).addTo(markersLayer);
             c.marker = marker;
 
-            // 點擊事件：支援點圖排序
             marker.on('click', (e) => {
                 if (isTapSortMode) {
                     L.DomEvent.stopPropagation(e);
@@ -550,16 +651,26 @@ g3759aa7788"></textarea>
             const title = `案件 ${c.displayIndex}`;
             const roadLabel = c.road ? ` | ${c.road}` : '';
 
-            marker.bindTooltip(`<b>${title}</b> ${c.code}<span class="case-road-text">${roadLabel}</span>`, {
+            const tooltip = marker.bindTooltip(`<b>${title}</b> ${c.code}<span class="case-road-text">${roadLabel}</span>`, {
                 permanent: true,
                 direction: 'top',
                 offset: [0, -12],
-                className: 'case-label-large'
+                className: 'case-label-large',
+                interactive: true
+            });
+
+            tooltip.on('click', (e) => {
+                if (isTapSortMode) {
+                    L.DomEvent.stopPropagation(e);
+                    handleCaseMarkerClick(c);
+                } else {
+                    marker.openPopup();
+                }
             });
 
             const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`;
             marker.bindPopup(`
-                <b style="font-size:15px;color:#dc2626;">${title}</b><br>
+                <b style="font-size:15px;color:#dc2626;">${title} (${c.rawName})</b><br>
                 ${c.road ? `<b>路名: ${c.road}</b><br>` : ''}
                 圖號: <b>${c.code}</b><br>
                 坐標: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}<br><br>
@@ -575,6 +686,7 @@ g3759aa7788"></textarea>
                     <span class="drag-handle">☰</span>
                     <div>
                         <b style="color:#ef4444;font-size:14px;">${title}</b> <span style="font-size:12px;color:#cbd5e1;font-weight:bold;">${c.code}</span><br>
+                        <span style="color:#aaa;font-size:11px;">${c.rawName}</span> 
                         <span style="color:#60a5fa;font-size:11px;">${c.road ? `(${c.road})` : ''}</span>
                     </div>
                 </div>
@@ -596,17 +708,24 @@ g3759aa7788"></textarea>
             let line = lines[index].trim();
             if (!line) continue;
 
-            let lat = null, lng = null, standardCode = '';
-            const parts = line.split(/\s+/);
-            let payload = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+            let lat = null, lng = null, standardCode = '', rawName = '';
 
-            const powerRes = parsePowerCoord(payload);
-            if (powerRes) {
-                lat = powerRes.lat;
-                lng = powerRes.lng;
-                standardCode = powerRes.standardCode;
-            } else if (payload.includes(',')) {
-                const [la, ln] = payload.split(',');
+            const codeMatch = line.match(/([A-Za-z]?\d{4}[A-Za-z]{2}(?:\d{2}|\d{4}))/);
+            
+            if (codeMatch) {
+                const targetCode = codeMatch[1];
+                rawName = line.replace(targetCode, '').trim() || `案件 ${index + 1}`;
+                const powerRes = parsePowerCoord(targetCode);
+                if (powerRes) {
+                    lat = powerRes.lat;
+                    lng = powerRes.lng;
+                    standardCode = powerRes.standardCode;
+                }
+            } else if (line.includes(',')) {
+                const parts = line.split(/\s+/);
+                const coordPart = parts.find(p => p.includes(','));
+                rawName = parts.filter(p => p !== coordPart).join(' ') || `案件 ${index + 1}`;
+                const [la, ln] = coordPart.split(',');
                 lat = parseFloat(la);
                 lng = parseFloat(ln);
                 standardCode = `${lat.toFixed(5)},${lng.toFixed(5)}`;
@@ -616,6 +735,7 @@ g3759aa7788"></textarea>
                 parsedCases.push({
                     displayIndex: parsedCases.length + 1,
                     code: standardCode,
+                    rawName: rawName,
                     lat: lat,
                     lng: lng,
                     road: ''
@@ -644,46 +764,22 @@ g3759aa7788"></textarea>
     }
 
     function copySortedList() {
-        if (parsedCases.length === 0) {
-            alert("目前尚無標記的案件！");
-            return;
-        }
-        const textToCopy = parsedCases.map(c => `案件${c.displayIndex} ${c.code}`).join('\n');
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                alert(`已依排序複製 ${parsedCases.length} 筆案件！`);
-            }).catch(() => fallbackCopy(textToCopy));
-        } else {
-            fallbackCopy(textToCopy);
-        }
-    }
-
-    function fallbackCopy(text) {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.top = '0';
-        ta.style.left = '0';
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        try {
-            document.execCommand('copy');
-            alert(`已依排序複製 ${parsedCases.length} 筆案件！`);
-        } catch (err) {
-            alert('複製失敗，請手動選取複製');
-        }
-        document.body.removeChild(ta);
+        if (parsedCases.length === 0) return;
+        const textToCopy = parsedCases.map(c => `${c.rawName} ${c.code}`).join('\n');
+        silentCopy(textToCopy);
+        const btn = document.getElementById('copyBtn');
+        btn.innerText = '✓ 已複製成功！';
+        setTimeout(() => { btn.innerText = '📋 複製已排案件清單'; }, 1500);
     }
 
     function clearAll() {
         markersLayer.clearLayers();
         if (routeLayer) map.removeLayer(routeLayer);
-        document.getElementById('routeInfo').style.display = 'none';
+        if (inspectMarker) map.removeLayer(inspectMarker);
         parsedCases = [];
         document.getElementById('input').value = '';
         listContainer.innerHTML = '';
-        map.setView([24.2100, 120.5500], 12);
+        map.setView([24.2200, 120.5500], 13);
     }
 </script>
 </body>
