@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TPC_GO 排工導航盤</title>
 
-    <!-- PWA 標準宣告 -->
-    <link rel="manifest" href="./manifest.json">
+    <!-- PWA 標準宣告（完全對齊 TPC_GO 目錄） -->
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#212529">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -118,7 +118,6 @@
             cursor: pointer;
         }
 
-        /* 標籤樣式：pointer-events auto 讓文字標籤可被點擊 */
         .case-label-large {
             background: rgba(220, 38, 38, 0.95);
             border: 2px solid #ffffff;
@@ -192,7 +191,7 @@
         <span style="font-size:12px;color:#9ca3af;cursor:pointer;" onclick="closeMobileSidebar()">✕ 關閉收合</span>
     </div>
 
-    <div style="font-size:11px;color:#9ca3af;line-height:1.3;">未打G自動補G。<b>點字體或圖釘均可直接導航/排序</b></div>
+    <div style="font-size:11px;color:#9ca3af;line-height:1.3;">未打G自動補G。<b>點字體或圖釘直接導航/排序</b></div>
 
     <textarea id="input" placeholder="貼上今日案件：
 青年路50號邊 G4263SA49
@@ -228,9 +227,10 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+    // --- 嚴格對齊 GitHub Pages 子目錄的 Service Worker 註冊 ---
     let deferredPrompt = null;
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
     }
 
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -313,7 +313,6 @@
             interactive: true 
         });
 
-        // 點擊文字標籤直接開啟氣泡選單
         tooltip.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             marker.openPopup();
@@ -368,7 +367,7 @@
         const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
         
         const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
-        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
         const j3 = 151 * e1 * e1 * e1 / 96;
         
         const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
@@ -670,7 +669,6 @@
             }).addTo(markersLayer);
             c.marker = marker;
 
-            // 點擊圖釘本體
             marker.on('click', (e) => {
                 if (isTapSortMode) {
                     L.DomEvent.stopPropagation(e);
@@ -681,7 +679,6 @@
             const title = `案件 ${c.displayIndex}`;
             const roadLabel = c.road ? ` | ${c.road}` : '';
 
-            // 綁定字體 Tooltip 並使其直接能觸發點擊
             const tooltip = marker.bindTooltip(`<b>${title}</b> ${c.code}<span class="case-road-text">${roadLabel}</span>`, {
                 permanent: true,
                 direction: 'top',
@@ -690,7 +687,6 @@
                 interactive: true
             });
 
-            // 關鍵修正：直接在 Tooltip 上監聽點擊事件
             tooltip.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
                 if (isTapSortMode) {
