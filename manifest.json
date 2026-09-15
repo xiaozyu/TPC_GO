@@ -1,7 +1,7 @@
 {
   "name": "TPC_GO 排工導航盤",
   "short_name": "TPC_GO",
-  "start_url": "./index.html",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#212529",
   "theme_color": "#212529",
