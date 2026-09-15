@@ -23,6 +23,22 @@
         .quick-stations { display: flex; flex-wrap: wrap; gap: 4px; border-top: 1px solid #ddd; padding-top: 8px; }
         .quick-btn { background: #e9ecef; color: #333; font-size: 11px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; flex: 1 1 45%; }
         .quick-btn:hover { background: #ced4da; }
+        
+        /* 地圖上常駐標籤樣式 */
+        .permanent-label {
+            background: rgba(0, 0, 0, 0.75);
+            border: 1px solid #333;
+            color: #fff;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 3px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+        .leaflet-tooltip-top:before { border-top-color: rgba(0, 0, 0, 0.75); }
+        .leaflet-tooltip-bottom:before { border-bottom-color: rgba(0, 0, 0, 0.75); }
+        .road-text { color: #ffeb3b; font-weight: normal; margin-left: 2px; }
     </style>
 </head>
 <body>
@@ -66,12 +82,12 @@ g3759aa7788"></textarea>
 
     // 常駐公務與午休地標清單
     const baseLocations = [
-        { name: "台電龍井服務所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務/出勤點" },
-        { name: "台電沙鹿服務所", lat: 24.23078, lng: 120.56306, color: "green", desc: "公務/出勤點" },
-        { name: "南勢溪公園", lat: 24.22550, lng: 120.56470, color: "orange", desc: "常駐午休點" },
-        { name: "萬興陸橋周邊", lat: 24.17250, lng: 120.54220, color: "orange", desc: "常駐午休點" },
-        { name: "中華向上陸橋周邊", lat: 24.21520, lng: 120.53680, color: "orange", desc: "常駐午休點" },
-        { name: "國三沙田交叉口", lat: 24.16100, lng: 120.53850, color: "orange", desc: "常駐停駐點" }
+        { name: "龍井服務所", lat: 24.19277, lng: 120.54595, color: "green", road: "沙田路四段" },
+        { name: "沙鹿服務所", lat: 24.23078, lng: 120.56306, color: "green", road: "鎮南路二段" },
+        { name: "南勢溪公園", lat: 24.22550, lng: 120.56470, color: "orange", road: "南斗路/自由路" },
+        { name: "萬興陸橋", lat: 24.17250, lng: 120.54220, color: "orange", road: "沙田路一段" },
+        { name: "中華向上陸橋", lat: 24.21520, lng: 120.53680, color: "orange", road: "中華路/向上路" },
+        { name: "國三沙田交叉", lat: 24.16100, lng: 120.53850, color: "orange", road: "沙田路一段" }
     ];
 
     const baseMarkers = [];
@@ -82,7 +98,17 @@ g3759aa7788"></textarea>
                 shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
                 iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
             })
-        }).addTo(map).bindPopup(`<b>【${loc.desc}】${loc.name}</b><br><a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank">開啟導航</a>`);
+        }).addTo(map);
+
+        // 綁定常駐顯示標籤 (名字 + 路名)
+        marker.bindTooltip(`<b>${loc.name}</b> <span class="road-text">(${loc.road})</span>`, {
+            permanent: true,
+            direction: 'bottom',
+            offset: [0, 8],
+            className: 'permanent-label'
+        });
+
+        marker.bindPopup(`<b>【固定點】${loc.name}</b><br>路名: ${loc.road}<br><a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank">開啟 Google 導航</a>`);
         baseMarkers.push(marker);
     });
 
@@ -94,7 +120,21 @@ g3759aa7788"></textarea>
         baseMarkers[index].openPopup();
     }
 
-    // TWD97 TM2 轉 WGS84 投影解算
+    // 逆地理編碼：從坐標查詢附近路名
+    async function fetchRoadName(lat, lng) {
+        try {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+            const resp = await fetch(url, { headers: { 'Accept-Language': 'zh-TW' } });
+            if (!resp.ok) return '';
+            const data = await resp.json();
+            const addr = data.address || {};
+            return addr.road || addr.street || addr.suburb || addr.neighbourhood || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    // TWD97 TM2 轉 WGS84
     function twd97ToWGS84(x, y) {
         const a = 6378137.0, b = 6356752.314245;
         const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
@@ -122,17 +162,13 @@ g3759aa7788"></textarea>
         return { lat: lat * 180 / Math.PI, lng: lon * 180 / Math.PI };
     }
 
-    // 台電圖號直接轉經緯度 (支援髒數據、S延伸網格運算)
+    // 台電圖號直接轉經緯度 (支援 S 延伸計算)
     function parsePowerCoord(codeStr) {
         const cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
-        
-        // 正則相容 9 碼或 11 碼圖號 (支援 S 在內的英文代號)
         const match = cleaned.match(/^([A-HJ-Z])(\d{2})(\d{2})([A-Z])([A-Z])(\d{2}|\d{4})$/);
         if (!match) return null;
 
         const [_, zone, xMap, yMap, subX, subY, pt] = match;
-
-        // 台電分區原點基準 (TWD97 原點定義)
         const originMap = {
             'A': [170000, 2750000], 'B': [250000, 2750000],
             'C': [170000, 2700000], 'D': [250000, 2700000],
@@ -144,11 +180,9 @@ g3759aa7788"></textarea>
         let twdX = baseOrigin[0] + parseInt(xMap, 10) * 800;
         let twdY = baseOrigin[1] + parseInt(yMap, 10) * 500;
 
-        // 100m 區塊偏移 (直接支援 S 延伸計算)
         twdX += (subX.charCodeAt(0) - 65) * 100;
         twdY += (subY.charCodeAt(0) - 65) * 100;
 
-        // 10m 或 1m 點位偏移
         if (pt.length === 2) {
             twdX += parseInt(pt[0], 10) * 10;
             twdY += parseInt(pt[1], 10) * 10;
@@ -160,7 +194,7 @@ g3759aa7788"></textarea>
         return twd97ToWGS84(twdX, twdY);
     }
 
-    function renderMarkers() {
+    async function renderMarkers() {
         markersLayer.clearLayers();
         const listDiv = document.getElementById('list');
         listDiv.innerHTML = '';
@@ -169,19 +203,17 @@ g3759aa7788"></textarea>
 
         baseLocations.forEach(loc => bounds.push([loc.lat, loc.lng]));
 
-        lines.forEach((line, index) => {
-            line = line.trim();
-            if (!line) return;
+        for (let index = 0; index < lines.length; index++) {
+            let line = lines[index].trim();
+            if (!line) continue;
 
             let title = `案件 ${index + 1}`;
             let lat = null, lng = null;
 
-            // 拆分案件名稱與坐標資料
             const parts = line.split(/\s+/);
             let payload = line;
 
             if (parts.length >= 2) {
-                // 若最後一段符合圖號或坐標結構
                 const testCoord = parsePowerCoord(parts[parts.length - 1]);
                 if (testCoord || parts[parts.length - 1].includes(',')) {
                     payload = parts.pop();
@@ -189,45 +221,63 @@ g3759aa7788"></textarea>
                 }
             }
 
-            // 1. 嘗試圖號解析 (含 S 計算)
             const powerRes = parsePowerCoord(payload);
             if (powerRes) {
                 lat = powerRes.lat;
                 lng = powerRes.lng;
             } else if (payload.includes(',')) {
-                // 2. 嘗試 緯度,經度
                 const [la, ln] = payload.split(',');
                 lat = parseFloat(la);
                 lng = parseFloat(ln);
             } else if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                // 3. 嘗試 經度 緯度
                 lng = parseFloat(parts[0]);
                 lat = parseFloat(parts[1]);
             }
 
             if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
                 bounds.push([lat, lng]);
-                const marker = L.marker([lat, lng]).addTo(markersLayer);
-                
-                const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-                const popupContent = `
-                    <b>${title}</b><br>
-                    代碼/座標: ${payload}<br>
-                    WGS84: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>
-                    <a href="${googleNavUrl}" target="_blank" style="color:#007bff;font-weight:bold;">開啟 Google 導航</a>
-                `;
-                marker.bindPopup(popupContent);
 
+                const marker = L.marker([lat, lng]).addTo(markersLayer);
+
+                // 初始標籤：先顯示名稱與圖號
+                marker.bindTooltip(`<b>${title}</b> <span class="road-text">(${payload})</span>`, {
+                    permanent: true,
+                    direction: 'top',
+                    offset: [0, -10],
+                    className: 'permanent-label'
+                });
+
+                // 側邊欄列表項目
                 const item = document.createElement('div');
                 item.className = 'item';
-                item.innerHTML = `<b>${title}</b><br><span style="color:#666;font-size:11px;">${payload}</span>`;
+                item.innerHTML = `<b>${title}</b><br><span style="color:#666;font-size:11px;">${payload}</span> <span id="road-item-${index}" style="color:#007bff;font-size:11px;">(查詢路名中...)</span>`;
                 item.onclick = () => {
                     map.flyTo([lat, lng], 16);
                     marker.openPopup();
                 };
                 listDiv.appendChild(item);
+
+                // 非同步查詢路名並即時更新到地圖標籤與側邊欄
+                fetchRoadName(lat, lng).then(road => {
+                    const roadLabel = road ? ` | ${road}` : '';
+                    marker.setTooltipContent(`<b>${title}</b> <span class="road-text">${roadLabel}</span>`);
+                    
+                    const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+                    marker.bindPopup(`
+                        <b>${title}</b><br>
+                        ${road ? `<b>路名: ${road}</b><br>` : ''}
+                        圖號/坐標: ${payload}<br>
+                        WGS84: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>
+                        <a href="${googleNavUrl}" target="_blank" style="color:#007bff;font-weight:bold;">開啟 Google 導航</a>
+                    `);
+
+                    const itemRoadSpan = document.getElementById(`road-item-${index}`);
+                    if (itemRoadSpan) {
+                        itemRoadSpan.innerText = road ? `(${road})` : '';
+                    }
+                });
             }
-        });
+        }
 
         if (bounds.length > 0) {
             map.fitBounds(bounds, { padding: [40, 40] });
