@@ -5,9 +5,8 @@
   "start_url": "/TPC_GO/index.html",
   "scope": "/TPC_GO/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#212529",
-  "theme_color": "#212529",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "icons": [
     {
       "src": "icon-192.png",
