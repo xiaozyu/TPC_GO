@@ -1,16 +1,24 @@
 {
+  "id": "/TPC_GO/",
   "name": "TPC_GO 排工導航盤",
   "short_name": "TPC_GO",
-  "start_url": "/TPC_GO/",
+  "start_url": "/TPC_GO/index.html",
   "scope": "/TPC_GO/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#212529",
   "theme_color": "#212529",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23212529'/%3E%3Cpath d='M280 40L140 280h100l-40 192 172-240H272z' fill='%23facc15' stroke='%23eab308' stroke-width='10' stroke-linejoin='round'/%3E%3C/svg%3E",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
