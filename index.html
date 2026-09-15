@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TPC_GO 排工導航盤</title>
 
-    <!-- PWA / App 設定 -->
+    <!-- PWA 標準宣告 -->
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#212529">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TPC_GO">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png">
-    <link id="pwa-manifest" rel="manifest">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
@@ -70,6 +70,7 @@
         .mode-btn.active { background: #dc2626; box-shadow: 0 0 10px #dc2626; }
         .copy-btn { background: #16a34a; }
         .clear-btn { background: #4b5563; padding: 5px; font-size: 11px; }
+        .install-btn { background: #9333ea; display: none; }
 
         .quick-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #333; padding-top: 6px; }
         .quick-btn { background: #2b2b36; color: #cbd5e1; font-size: 11px; padding: 5px 2px; border: 1px solid #444; border-radius: 4px; }
@@ -194,6 +195,7 @@
 型份東段781-5地號 G4764AA87"></textarea>
 
     <div class="btn-group">
+        <button id="installAppBtn" class="install-btn" onclick="triggerPWAInstall()">📲 下載安裝為 APP</button>
         <button onclick="renderMarkers(true)">在地圖上標記點位</button>
         <button id="tapSortBtn" class="mode-btn" onclick="toggleTapSortMode()">👆 點圖自動排工順序 (已關閉)</button>
         <button id="copyBtn" class="copy-btn" onclick="copySortedList()">📋 複製已排案件清單</button>
@@ -221,31 +223,28 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --- PWA 內嵌自動註冊機制 (免外掛檔案直接支援 App 安裝) ---
-    const manifestData = {
-        name: "TPC_GO 排工導航盤",
-        short_name: "TPC_GO",
-        start_url: "./index.html",
-        display: "standalone",
-        background_color: "#212529",
-        theme_color: "#212529",
-        icons: [{
-            src: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
-            sizes: "512x512",
-            type: "image/png"
-        }]
-    };
-    const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
-    document.getElementById('pwa-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
-
+    // --- 註冊實體 Service Worker ---
+    let deferredPrompt = null;
     if ('serviceWorker' in navigator) {
-        const swCode = `
-            self.addEventListener('install', e => self.skipWaiting());
-            self.addEventListener('activate', e => clients.claim());
-            self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));
-        `;
-        const swBlob = new Blob([swCode], { type: 'text/javascript' });
-        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    // 監聽 PWA 安裝事件
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const btn = document.getElementById('installAppBtn');
+        if (btn) btn.style.display = 'block';
+    });
+
+    function triggerPWAInstall() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(() => {
+                deferredPrompt = null;
+                document.getElementById('installAppBtn').style.display = 'none';
+            });
+        }
     }
 
     function toggleMobileSidebar() {
@@ -277,7 +276,6 @@
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
-    // 精確實測 6 大固定點
     const baseLocations = [
         { name: "龍井服務所", lat: 24.193150, lng: 120.546019, color: "green", desc: "公務點" },
         { name: "沙鹿服務所", lat: 24.230309, lng: 120.565418, color: "green", desc: "公務點" },
@@ -320,7 +318,6 @@
     let isTapSortMode = false;
     let tapSortedOrder = [];
 
-    // --- 座標轉換演算法 (含 TWD67/97 偏差校正) ---
     function wgs84ToTWD97(lat, lon) {
         const a = 6378137.0, b = 6356752.314245;
         const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
