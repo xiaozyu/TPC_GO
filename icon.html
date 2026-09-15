@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>TPC_GO 圖示產生器</title>
+    <style>
+        body { background: #0f172a; color: #fff; font-family: sans-serif; text-align: center; padding: 40px 20px; }
+        .box { max-width: 420px; margin: 0 auto; background: #1e293b; padding: 24px; border-radius: 12px; border: 1px solid #334155; }
+        canvas { border-radius: 20px; margin: 20px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+        button { width: 100%; padding: 12px; margin: 8px 0; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
+        button:active { filter: brightness(0.85); }
+        .sec { background: #059669; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>⚡ TPC_GO 圖示輸出</h2>
+        <p style="font-size: 13px; color: #94a3b8;">點擊下方按鈕，直接下載標準 PWA 圖檔：</p>
+        <canvas id="preview" width="256" height="256"></canvas>
+        <button onclick="downloadIcon(192)">📥 下載 icon-192.png</button>
+        <button class="sec" onclick="downloadIcon(512)">📥 下載 icon-512.png</button>
+    </div>
+
+    <script>
+        function drawTPCIcon(canvas, size) {
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // 1. 底色：深邃鈦黑漸層
+            const bgGrad = ctx.createLinearGradient(0, 0, size, size);
+            bgGrad.addColorStop(0, '#0f172a');
+            bgGrad.addColorStop(1, '#020617');
+            ctx.fillStyle = bgGrad;
+            ctx.beginPath();
+            ctx.roundRect(0, 0, size, size, [size * 0.22]);
+            ctx.fill();
+
+            // 2. 邊框金屬微邊
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.lineWidth = size * 0.015;
+            ctx.stroke();
+
+            // 3. 背景微光電力網格
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+            ctx.lineWidth = size * 0.012;
+            const grid = size / 6;
+            for (let i = 1; i < 6; i++) {
+                ctx.beginPath(); ctx.moveTo(i * grid, 0); ctx.lineTo(i * grid, size); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i * grid); ctx.lineTo(size, i * grid); ctx.stroke();
+            }
+
+            // 4. 背後光暈
+            ctx.save();
+            ctx.shadowColor = 'rgba(250, 204, 21, 0.6)';
+            ctx.shadowBlur = size * 0.18;
+
+            // 5. 核心：銳利立體金色閃電
+            const boltGrad = ctx.createLinearGradient(size * 0.3, size * 0.1, size * 0.7, size * 0.9);
+            boltGrad.addColorStop(0, '#fef08a');
+            boltGrad.addColorStop(0.4, '#facc15');
+            boltGrad.addColorStop(1, '#ea580c');
+            ctx.fillStyle = boltGrad;
+            ctx.beginPath();
+            ctx.moveTo(size * 0.58, size * 0.10);
+            ctx.lineTo(size * 0.22, size * 0.52);
+            ctx.lineTo(size * 0.46, size * 0.52);
+            ctx.lineTo(size * 0.36, size * 0.90);
+            ctx.lineTo(size * 0.78, size * 0.44);
+            ctx.lineTo(size * 0.54, size * 0.44);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            // 6. 頂部高光折射
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.beginPath();
+            ctx.moveTo(size * 0.58, size * 0.10);
+            ctx.lineTo(size * 0.42, size * 0.30);
+            ctx.lineTo(size * 0.48, size * 0.44);
+            ctx.lineTo(size * 0.54, size * 0.44);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        drawTPCIcon(document.getElementById('preview'), 256);
+
+        function downloadIcon(size) {
+            const temp = document.createElement('canvas');
+            drawTPCIcon(temp, size);
+            const a = document.createElement('a');
+            a.download = `icon-${size}.png`;
+            a.href = temp.toDataURL('image/png');
+            a.click();
+        }
+    </script>
+</body>
+</html>
