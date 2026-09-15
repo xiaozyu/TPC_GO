@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TPC_GO 排工導航盤</title>
     
-    <!-- PWA 支援 (以 Blob 動態註冊 Manifest) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TPC_GO">
@@ -96,7 +95,6 @@
         .item-sub { font-size: 11px; color: #64748b; font-family: monospace; }
         .item-badge { background: #dc2626; color: white; font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 4px; white-space: nowrap; margin-left: 6px; }
 
-        /* 標籤 */
         .case-label-large {
             background: rgba(185, 28, 28, 0.95);
             border: 2px solid #ffffff;
@@ -118,7 +116,6 @@
             white-space: nowrap;
         }
 
-        /* 懸浮功能鈕 */
         .gps-btn {
             position: absolute;
             bottom: 25px;
@@ -153,7 +150,6 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
-        /* 手機 RWD */
         @media (max-width: 768px) {
             body { flex-direction: column-reverse; }
             #sidebar {
@@ -185,11 +181,11 @@
         <button class="mobile-toggle" onclick="toggleMobileSheet()">排工/案件清單</button>
     </div>
 
-    <textarea id="input" placeholder="貼上圖號座標（支援無G、髒資料）：
+    <textarea id="input" placeholder="貼上圖號座標（未打G自動補G）：
+g4263sa49
 4143ae57
-g4464sa97
 4464sa97
-24.22582,120.56388"></textarea>
+24.22550,120.56470"></textarea>
 
     <div class="btn-grid">
         <button class="btn-full" onclick="renderMarkers(true)">在地圖上標記點位</button>
@@ -206,7 +202,6 @@ g4464sa97
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // PWA Manifest 動態生成
     (function initPWA() {
         const manifest = {
             name: "TPC_GO 排工導航盤",
@@ -235,7 +230,7 @@ g4464sa97
     });
 
     const map = L.map('map', {
-        center: [24.2100, 120.5500],
+        center: [24.2200, 120.5500],
         zoom: 13,
         zoomControl: false,
         layers: [googleRoads]
@@ -243,8 +238,7 @@ g4464sa97
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
-    // 依 Google 地圖連結校準之點位
-   // 依使用者截圖實體 Pin 點絕對校正
+    // 依沙鹿、龍井現地絕對道路校準
     const baseLocations = [
         { name: "沙鹿所", lat: 24.23465, lng: 120.55938, color: "green", desc: "公務點" },
         { name: "龍井所", lat: 24.19532, lng: 120.54611, color: "green", desc: "公務點" },
@@ -282,7 +276,7 @@ g4464sa97
     let isPickMode = false;
     let pickCounter = 0;
 
-    // 坐標轉換核心 (WGS84 <-> TWD97 <-> TWD67 <-> 台電圖號)
+    // TWD97 <-> WGS84
     const a = 6378137.0, b = 6356752.314245;
     const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
     const e = Math.sqrt(1 - (b * b) / (a * a)), e2 = e * e / (1 - e * e);
@@ -322,7 +316,7 @@ g4464sa97
         return { x, y };
     }
 
-    // 台電圖號 -> 經緯度
+    // 台電圖號原點校準（精確對齊沙鹿/龍井/大肚海線）
     function parsePowerCoord(codeStr) {
         let cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
         if (/^\d{4}[A-Z]{2}(\d{2}|\d{4})$/.test(cleaned)) cleaned = 'G' + cleaned;
@@ -330,13 +324,15 @@ g4464sa97
         if (!match) return null;
 
         const [_, zone, xStr, yStr, subXStr, subYStr, ptStr] = match;
+
+        // G區原點校準為 TWD67 (170000, 2640000)
         const zoneOrigins = {
             'A': [250000, 2780000], 'B': [330000, 2780000],
-            'C': [170000, 2730000], 'D': [250000, 2730000],
-            'E': [90000,  2680000], 'F': [170000, 2680000],
-            'G': [170000, 2630000], 'H': [250000, 2630000]
+            'C': [170000, 2740000], 'D': [250000, 2740000],
+            'E': [90000,  2690000], 'F': [170000, 2690000],
+            'G': [170000, 2640000], 'H': [250000, 2640000]
         };
-        const origin = zoneOrigins[zone] || [170000, 2630000];
+        const origin = zoneOrigins[zone] || [170000, 2640000];
 
         let subX = subXStr.charCodeAt(0) - 65;
         if (subXStr.charCodeAt(0) > 73) subX -= 1; // 跳過 'I'
@@ -353,18 +349,18 @@ g4464sa97
             twd67Y += parseInt(ptStr.substring(2, 4), 10);
         }
 
-        const twd97X = twd67X - 828;
-        const twd97Y = twd67Y + 206;
+        // TWD67 -> TWD97 參數
+        const twd97X = twd67X - 807.8;
+        const twd97Y = twd67Y + 248.6;
         return { ...twd97ToWGS84(twd97X, twd97Y), standardCode: cleaned };
     }
 
-    // 經緯度 -> 台電圖號 (以 G 區台中/彰化基準)
     function coordToPowerCoord(lat, lng) {
         const { x: t97X, y: t97Y } = wgs84ToTWD97(lat, lng);
-        const t67X = t97X + 828;
-        const t67Y = t97Y - 206;
+        const t67X = t97X + 807.8;
+        const t67Y = t97Y - 248.6;
 
-        const origin = [170000, 2630000];
+        const origin = [170000, 2640000];
         const dx = t67X - origin[0];
         const dy = t67Y - origin[1];
 
@@ -375,7 +371,7 @@ g4464sa97
         const remY = dy % 500;
 
         let subXIdx = Math.floor(remX / 100);
-        if (subXIdx >= 8) subXIdx += 1; // 跳過 'I'
+        if (subXIdx >= 8) subXIdx += 1;
         const subXChar = String.fromCharCode(65 + subXIdx);
 
         const subYIdx = 4 - Math.floor(remY / 100);
@@ -398,7 +394,6 @@ g4464sa97
         } catch (e) { return ''; }
     }
 
-    // 長按 2 秒換算圖號座標
     let touchTimer = null;
     map.on('mousedown touchstart', function (e) {
         if (isPickMode) return;
@@ -435,7 +430,6 @@ g4464sa97
         renderMarkers();
     }
 
-    // 自我定位 (同步解析當前圖號)
     function locateMe() {
         if (!navigator.geolocation) {
             alert("瀏覽器不支援定位功能");
@@ -469,7 +463,6 @@ g4464sa97
         }, { enableHighAccuracy: true });
     }
 
-    // 點選排工模式切換
     function togglePickOrderMode() {
         if (parsedCases.length === 0) {
             alert("請先貼上並標記案件後，再進行排工！");
@@ -492,7 +485,6 @@ g4464sa97
             btn.innerHTML = '⚡ 點選排工模式';
             status.className = 'badge-mode mode-normal';
             status.innerText = '清單模式';
-            // 將未點選到的項目依序補上編號
             parsedCases.forEach(c => {
                 if (!c.displayIndex) {
                     pickCounter++;
@@ -507,7 +499,7 @@ g4464sa97
     function handleCasePick(caseIndex) {
         if (!isPickMode) return;
         const item = parsedCases[caseIndex];
-        if (item.picked) return; // 已選過
+        if (item.picked) return;
 
         pickCounter++;
         item.picked = true;
@@ -516,11 +508,10 @@ g4464sa97
         refreshMarkersAndList();
 
         if (pickCounter === parsedCases.length) {
-            togglePickOrderMode(); // 全選完成自動退出排工模式
+            togglePickOrderMode();
         }
     }
 
-    // 更新 Marker 與清單（顯示格式：地名 -> 圖號座標 -> 第幾件）
     function refreshMarkersAndList() {
         markersLayer.clearLayers();
         listContainer.innerHTML = '';
@@ -628,7 +619,6 @@ g4464sa97
 
         refreshMarkersAndList();
 
-        // 批次查詢路名
         parsedCases.forEach((c) => {
             fetchRoadName(c.lat, c.lng).then(road => {
                 c.road = road;
@@ -647,7 +637,6 @@ g4464sa97
         }
     }
 
-    // 拖曳排序清單
     const listContainer = document.getElementById('list');
     Sortable.create(listContainer, {
         handle: '.drag-handle',
@@ -747,7 +736,7 @@ g4464sa97
         btn.innerHTML = '⚡ 點選排工模式';
         document.getElementById('mode-status').className = 'badge-mode mode-normal';
         document.getElementById('mode-status').innerText = '清單模式';
-        map.setView([24.2100, 120.5500], 13);
+        map.setView([24.2200, 120.5500], 13);
     }
 </script>
 </body>
