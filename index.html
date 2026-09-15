@@ -24,21 +24,19 @@
         .quick-btn { background: #e9ecef; color: #333; font-size: 11px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; flex: 1 1 45%; }
         .quick-btn:hover { background: #ced4da; }
         
-        /* 地圖上常駐標籤樣式 */
+        /* 地圖標籤樣式 */
         .permanent-label {
-            background: rgba(0, 0, 0, 0.75);
-            border: 1px solid #333;
+            background: rgba(20, 20, 20, 0.85);
+            border: 1px solid #444;
             color: #fff;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 3px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            padding: 2px 7px;
+            border-radius: 4px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
             white-space: nowrap;
         }
-        .leaflet-tooltip-top:before { border-top-color: rgba(0, 0, 0, 0.75); }
-        .leaflet-tooltip-bottom:before { border-bottom-color: rgba(0, 0, 0, 0.75); }
-        .road-text { color: #ffeb3b; font-weight: normal; margin-left: 2px; }
+        .road-text { color: #ffd166; font-weight: normal; margin-left: 2px; }
     </style>
 </head>
 <body>
@@ -75,19 +73,39 @@ g3759aa7788"></textarea>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const map = L.map('map').setView([24.2100, 120.5500], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap'
+    // 解決放大卡頓：替換為高速 Google Maps 底圖圖資
+    const googleRoads = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['0', '1', '2', '3'],
+        attribution: '&copy; Google Maps'
+    });
+
+    const googleHybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['0', '1', '2', '3'],
+        attribution: '&copy; Google Maps'
+    });
+
+    const map = L.map('map', {
+        center: [24.2100, 120.5500],
+        zoom: 12,
+        layers: [googleRoads] // 預設使用高速道路圖
+    });
+
+    // 提供底圖快速切換（道路 / 衛星混合）
+    L.control.layers({
+        "Google 道路圖": googleRoads,
+        "Google 衛星混合圖": googleHybrid
     }).addTo(map);
 
-    // 常駐公務與午休地標清單
+    // 常駐公務與午休地標清單（純名稱標註）
     const baseLocations = [
-        { name: "龍井服務所", lat: 24.19277, lng: 120.54595, color: "green", road: "沙田路四段" },
-        { name: "沙鹿服務所", lat: 24.23078, lng: 120.56306, color: "green", road: "鎮南路二段" },
-        { name: "南勢溪公園", lat: 24.22550, lng: 120.56470, color: "orange", road: "南斗路/自由路" },
-        { name: "萬興陸橋", lat: 24.17250, lng: 120.54220, color: "orange", road: "沙田路一段" },
-        { name: "中華向上陸橋", lat: 24.21520, lng: 120.53680, color: "orange", road: "中華路/向上路" },
-        { name: "國三沙田交叉", lat: 24.16100, lng: 120.53850, color: "orange", road: "沙田路一段" }
+        { name: "龍井服務所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務/出勤點" },
+        { name: "沙鹿服務所", lat: 24.23078, lng: 120.56306, color: "green", desc: "公務/出勤點" },
+        { name: "南勢溪公園", lat: 24.22550, lng: 120.56470, color: "orange", desc: "常駐午休點" },
+        { name: "萬興陸橋", lat: 24.17250, lng: 120.54220, color: "orange", desc: "常駐午休點" },
+        { name: "中華向上陸橋", lat: 24.21520, lng: 120.53680, color: "orange", desc: "常駐午休點" },
+        { name: "國三沙田交叉", lat: 24.16100, lng: 120.53850, color: "orange", desc: "常駐停駐點" }
     ];
 
     const baseMarkers = [];
@@ -100,15 +118,15 @@ g3759aa7788"></textarea>
             })
         }).addTo(map);
 
-        // 綁定常駐顯示標籤 (名字 + 路名)
-        marker.bindTooltip(`<b>${loc.name}</b> <span class="road-text">(${loc.road})</span>`, {
+        // 僅顯示純名稱，不帶路名
+        marker.bindTooltip(`<b>${loc.name}</b>`, {
             permanent: true,
             direction: 'bottom',
             offset: [0, 8],
             className: 'permanent-label'
         });
 
-        marker.bindPopup(`<b>【固定點】${loc.name}</b><br>路名: ${loc.road}<br><a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank">開啟 Google 導航</a>`);
+        marker.bindPopup(`<b>【${loc.desc}】${loc.name}</b><br><a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank">開啟 Google 導航</a>`);
         baseMarkers.push(marker);
     });
 
@@ -239,7 +257,7 @@ g3759aa7788"></textarea>
 
                 const marker = L.marker([lat, lng]).addTo(markersLayer);
 
-                // 初始標籤：先顯示名稱與圖號
+                // 案件點常駐標籤（名稱 + 路名）
                 marker.bindTooltip(`<b>${title}</b> <span class="road-text">(${payload})</span>`, {
                     permanent: true,
                     direction: 'top',
@@ -247,7 +265,6 @@ g3759aa7788"></textarea>
                     className: 'permanent-label'
                 });
 
-                // 側邊欄列表項目
                 const item = document.createElement('div');
                 item.className = 'item';
                 item.innerHTML = `<b>${title}</b><br><span style="color:#666;font-size:11px;">${payload}</span> <span id="road-item-${index}" style="color:#007bff;font-size:11px;">(查詢路名中...)</span>`;
@@ -257,7 +274,7 @@ g3759aa7788"></textarea>
                 };
                 listDiv.appendChild(item);
 
-                // 非同步查詢路名並即時更新到地圖標籤與側邊欄
+                // 逆查路名更新
                 fetchRoadName(lat, lng).then(road => {
                     const roadLabel = road ? ` | ${road}` : '';
                     marker.setTooltipContent(`<b>${title}</b> <span class="road-text">${roadLabel}</span>`);
