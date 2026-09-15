@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TPC_GO 排工導航盤</title>
 
-    <!-- PWA 標準宣告（完全對齊 TPC_GO 目錄） -->
-    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#212529">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TPC_GO">
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png">
+    <link id="dynamic-favicon" rel="icon" type="image/png">
+    <link id="dynamic-apple-icon" rel="apple-touch-icon">
+    <link id="dynamic-manifest" rel="manifest">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
@@ -227,7 +227,61 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --- 嚴格對齊 GitHub Pages 子目錄的 Service Worker 註冊 ---
+    // --- 程式碼動態生成 PNG 圖示與標準 Manifest ---
+    function generateAppIcon(size) {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // 背景深色圓角矩形
+        ctx.fillStyle = '#212529';
+        ctx.beginPath();
+        const r = size * 0.2;
+        ctx.roundRect(0, 0, size, size, [r]);
+        ctx.fill();
+
+        // 繪製台電閃電標誌
+        ctx.fillStyle = '#facc15';
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = size * 0.02;
+        ctx.beginPath();
+        ctx.moveTo(size * 0.55, size * 0.12);
+        ctx.lineTo(size * 0.25, size * 0.55);
+        ctx.lineTo(size * 0.48, size * 0.55);
+        ctx.lineTo(size * 0.40, size * 0.88);
+        ctx.lineTo(size * 0.75, size * 0.45);
+        ctx.lineTo(size * 0.52, size * 0.45);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        return canvas.toDataURL('image/png');
+    }
+
+    const icon192 = generateAppIcon(192);
+    const icon512 = generateAppIcon(512);
+
+    document.getElementById('dynamic-favicon').href = icon192;
+    document.getElementById('dynamic-apple-icon').href = icon192;
+
+    const manifestObj = {
+        name: "TPC_GO 排工導航盤",
+        short_name: "TPC_GO",
+        start_url: window.location.href,
+        scope: window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1),
+        display: "standalone",
+        background_color: "#212529",
+        theme_color: "#212529",
+        icons: [
+            { src: icon192, sizes: "192x192", type: "image/png" },
+            { src: icon512, sizes: "512x512", type: "image/png" }
+        ]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+    document.getElementById('dynamic-manifest').href = URL.createObjectURL(manifestBlob);
+
+    // 註冊 Service Worker
     let deferredPrompt = null;
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
@@ -367,7 +421,7 @@
         const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
         
         const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
-        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 / 32;
         const j3 = 151 * e1 * e1 * e1 / 96;
         
         const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
