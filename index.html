@@ -176,26 +176,31 @@ g3759aa7788"></textarea>
         document.getElementById('sidebar').classList.toggle('collapsed');
     }
 
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap'
+    // Google 高速道路底圖
+    const googleRoads = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['0', '1', '2', '3'],
+        attribution: '&copy; Google Maps'
     });
 
+    // Google 衛星混合圖
     const googleHybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['0', '1', '2', '3'],
-        attribution: '&copy; Google'
+        attribution: '&copy; Google Maps'
     });
 
     const map = L.map('map', {
         center: [24.2100, 120.5500],
         zoom: 12,
         zoomControl: false,
-        layers: [osm]
+        layers: [googleRoads]
     });
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.control.layers({ "標準道路圖": osm, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
+    L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
+    // 常用固定點（縮小圖釘與標籤）
     const baseLocations = [
         { name: "龍井所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務點" },
         { name: "沙鹿所", lat: 24.23078, lng: 120.56306, color: "green", desc: "公務點" },
@@ -283,7 +288,7 @@ g3759aa7788"></textarea>
         const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
         
         const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
-        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
         const j3 = 151 * e1 * e1 * e1 / 96;
         
         const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
