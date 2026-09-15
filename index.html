@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TPC_GO 排工導航盤</title>
+
+    <!-- PWA / App 設定 -->
+    <meta name="theme-color" content="#212529">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TPC_GO">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png">
+    <link id="pwa-manifest" rel="manifest">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
@@ -212,6 +221,33 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+    // --- PWA 內嵌自動註冊機制 (免外掛檔案直接支援 App 安裝) ---
+    const manifestData = {
+        name: "TPC_GO 排工導航盤",
+        short_name: "TPC_GO",
+        start_url: "./index.html",
+        display: "standalone",
+        background_color: "#212529",
+        theme_color: "#212529",
+        icons: [{
+            src: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+            sizes: "512x512",
+            type: "image/png"
+        }]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+    document.getElementById('pwa-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
+
+    if ('serviceWorker' in navigator) {
+        const swCode = `
+            self.addEventListener('install', e => self.skipWaiting());
+            self.addEventListener('activate', e => clients.claim());
+            self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));
+        `;
+        const swBlob = new Blob([swCode], { type: 'text/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+    }
+
     function toggleMobileSidebar() {
         document.getElementById('sidebar').classList.toggle('mobile-open');
     }
@@ -241,6 +277,7 @@
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
+    // 精確實測 6 大固定點
     const baseLocations = [
         { name: "龍井服務所", lat: 24.193150, lng: 120.546019, color: "green", desc: "公務點" },
         { name: "沙鹿服務所", lat: 24.230309, lng: 120.565418, color: "green", desc: "公務點" },
@@ -283,6 +320,7 @@
     let isTapSortMode = false;
     let tapSortedOrder = [];
 
+    // --- 座標轉換演算法 (含 TWD67/97 偏差校正) ---
     function wgs84ToTWD97(lat, lon) {
         const a = 6378137.0, b = 6356752.314245;
         const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
@@ -317,7 +355,7 @@
         const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
         
         const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
-        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
         const j3 = 151 * e1 * e1 * e1 / 96;
         
         const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
