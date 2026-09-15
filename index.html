@@ -2,62 +2,135 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>台電排工標記地圖</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { width: 340px; background: #f8f9fa; border-right: 1px solid #ccc; display: flex; flex-direction: column; padding: 15px; gap: 10px; z-index: 1000; }
-        #map { flex: 1; height: 100%; }
-        h3 { font-size: 16px; margin-bottom: 5px; }
-        textarea { width: 100%; height: 150px; padding: 8px; font-size: 13px; resize: none; border: 1px solid #bbb; border-radius: 4px; font-family: monospace; }
-        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0056b3; }
-        .clear-btn { background: #6c757d; margin-top: 5px; }
-        .clear-btn:hover { background: #5a6268; }
-        #list { flex: 1; overflow-y: auto; border-top: 1px solid #ddd; padding-top: 10px; }
-        .item { background: white; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 6px; font-size: 13px; cursor: pointer; }
-        .item:hover { border-color: #007bff; }
-        .hint { font-size: 11px; color: #666; line-height: 1.4; }
-        .quick-stations { display: flex; flex-wrap: wrap; gap: 4px; border-top: 1px solid #ddd; padding-top: 8px; }
-        .quick-btn { background: #e9ecef; color: #333; font-size: 11px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; flex: 1 1 45%; }
-        .quick-btn:hover { background: #ced4da; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { display: flex; height: 100dvh; width: 100vw; overflow: hidden; position: relative; }
         
+        /* 側邊欄：電腦版左側固定，手機版為抽屜式浮層 */
+        #sidebar { 
+            width: 360px; 
+            background: #ffffff; 
+            border-right: 1px solid #ccc; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 12px; 
+            gap: 8px; 
+            z-index: 1001; 
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        #map { flex: 1; height: 100%; width: 100%; z-index: 1; }
+        
+        .header-box { display: flex; justify-content: space-between; align-items: center; }
+        h3 { font-size: 16px; color: #1a1a1a; }
+        .toggle-btn { display: none; background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+
+        textarea { 
+            width: 100%; 
+            height: 120px; 
+            padding: 8px; 
+            font-size: 13px; 
+            resize: none; 
+            border: 1px solid #ccc; 
+            border-radius: 6px; 
+            font-family: monospace; 
+            background: #fafafa;
+        }
+
+        .btn-group { display: flex; flex-direction: column; gap: 6px; }
+        button { 
+            width: 100%; 
+            padding: 10px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 14px;
+            touch-action: manipulation;
+        }
+        button:active { filter: brightness(0.9); }
+        
+        .copy-btn { background: #28a745; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .clear-btn { background: #6c757d; padding: 6px; font-size: 12px; font-weight: normal; }
+
+        #list { flex: 1; overflow-y: auto; border-top: 1px solid #eee; padding-top: 8px; -webkit-overflow-scrolling: touch; }
+        .item { background: #f8f9fa; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 6px; font-size: 13px; cursor: pointer; }
+        .item:hover { background: #edf2f7; }
+
+        .hint { font-size: 11px; color: #666; line-height: 1.3; }
+        .quick-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #eee; padding-top: 6px; }
+        .quick-btn { background: #eef2f5; color: #333; font-size: 11px; padding: 6px 2px; border: 1px solid #d1d9e0; border-radius: 4px; font-weight: normal; }
+
         /* 地圖標籤樣式 */
         .permanent-label {
             background: rgba(20, 20, 20, 0.85);
-            border: 1px solid #444;
+            border: 1px solid #333;
             color: #fff;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
-            padding: 2px 7px;
+            padding: 2px 6px;
             border-radius: 4px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
             white-space: nowrap;
         }
-        .road-text { color: #ffd166; font-weight: normal; margin-left: 2px; }
+        .road-text { color: #ffd166; font-weight: normal; }
+
+        /* 手機 RWD 樣式適配 */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                max-height: 80vh;
+                border-right: none;
+                border-bottom: 2px solid #007bff;
+                border-radius: 0 0 12px 12px;
+                transform: translateY(0);
+            }
+            #sidebar.collapsed {
+                transform: translateY(-90%);
+                box-shadow: none;
+            }
+            #sidebar.collapsed .hide-on-collapse {
+                display: none;
+            }
+            .toggle-btn { display: block; }
+            textarea { height: 90px; }
+            .quick-stations { grid-template-columns: repeat(3, 1fr); }
+        }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <h3>台電案件快速標記</h3>
-    <div class="hint">
-        支援大小寫混打、空格混雜、S延伸區段：<br>
-        1. <code>案號 G4353AE54</code> 或 <code>g4464sa97</code><br>
-        2. <code>緯度,經度</code> 或 <code>經度 緯度</code><br>
-        3. 單純輸入圖號 (例：<code>g3759aa7788</code>)
+    <div class="header-box">
+        <h3>台電案件快速標記</h3>
+        <button class="toggle-btn" onclick="toggleSidebar()">展開/收合面板</button>
     </div>
-    <textarea id="input" placeholder="例如：
+
+    <div class="hint hide-on-collapse">支援小寫/空格/S延伸區段，自動逆查路名</div>
+
+    <textarea id="input" class="hide-on-collapse" placeholder="貼上案件清單，例：
 g4353ae54
 案件2 g4464bb88
 大甲案件 g4464sa97
 g3759aa7788"></textarea>
-    <button onclick="renderMarkers()">在地圖上標記點位</button>
-    <button class="clear-btn" onclick="clearAll()">清空重填</button>
-    
-    <div class="quick-stations">
+
+    <div class="btn-group hide-on-collapse">
+        <button onclick="renderMarkers(true)">在地圖上標記點位</button>
+        <button class="copy-btn" onclick="copySortedList()">📋 複製已排案件 (貼至巨擎導航)</button>
+        <button class="clear-btn" onclick="clearAll()">清空重填</button>
+    </div>
+
+    <div class="quick-stations hide-on-collapse">
         <button class="quick-btn" onclick="locateBase(0)">龍井服務所</button>
         <button class="quick-btn" onclick="locateBase(1)">沙鹿服務所</button>
         <button class="quick-btn" onclick="locateBase(2)">南勢溪公園</button>
@@ -66,14 +139,18 @@ g3759aa7788"></textarea>
         <button class="quick-btn" onclick="locateBase(5)">國三沙田交叉</button>
     </div>
 
-    <div id="list"></div>
+    <div id="list" class="hide-on-collapse"></div>
 </div>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // 解決放大卡頓：替換為高速 Google Maps 底圖圖資
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
+    }
+
+    // 高速 Google 圖資
     const googleRoads = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['0', '1', '2', '3'],
@@ -89,16 +166,18 @@ g3759aa7788"></textarea>
     const map = L.map('map', {
         center: [24.2100, 120.5500],
         zoom: 12,
-        layers: [googleRoads] // 預設使用高速道路圖
+        zoomControl: false,
+        layers: [googleRoads]
     });
 
-    // 提供底圖快速切換（道路 / 衛星混合）
-    L.control.layers({
-        "Google 道路圖": googleRoads,
-        "Google 衛星混合圖": googleHybrid
-    }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // 常駐公務與午休地標清單（純名稱標註）
+    L.control.layers({
+        "道路圖": googleRoads,
+        "衛星混合": googleHybrid
+    }, null, { position: 'topright' }).addTo(map);
+
+    // 固定據點
     const baseLocations = [
         { name: "龍井服務所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務/出勤點" },
         { name: "沙鹿服務所", lat: 24.23078, lng: 120.56306, color: "green", desc: "公務/出勤點" },
@@ -118,7 +197,6 @@ g3759aa7788"></textarea>
             })
         }).addTo(map);
 
-        // 僅顯示純名稱，不帶路名
         marker.bindTooltip(`<b>${loc.name}</b>`, {
             permanent: true,
             direction: 'bottom',
@@ -131,14 +209,17 @@ g3759aa7788"></textarea>
     });
 
     let markersLayer = L.layerGroup().addTo(map);
+    let parsedCases = []; // 儲存已排好的案件供複製
 
     function locateBase(index) {
         const target = baseLocations[index];
         map.flyTo([target.lat, target.lng], 16);
         baseMarkers[index].openPopup();
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.add('collapsed');
+        }
     }
 
-    // 逆地理編碼：從坐標查詢附近路名
     async function fetchRoadName(lat, lng) {
         try {
             const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
@@ -152,7 +233,6 @@ g3759aa7788"></textarea>
         }
     }
 
-    // TWD97 TM2 轉 WGS84
     function twd97ToWGS84(x, y) {
         const a = 6378137.0, b = 6356752.314245;
         const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
@@ -180,7 +260,6 @@ g3759aa7788"></textarea>
         return { lat: lat * 180 / Math.PI, lng: lon * 180 / Math.PI };
     }
 
-    // 台電圖號直接轉經緯度 (支援 S 延伸計算)
     function parsePowerCoord(codeStr) {
         const cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
         const match = cleaned.match(/^([A-HJ-Z])(\d{2})(\d{2})([A-Z])([A-Z])(\d{2}|\d{4})$/);
@@ -209,11 +288,12 @@ g3759aa7788"></textarea>
             twdY += parseInt(pt.substring(2, 4), 10);
         }
 
-        return twd97ToWGS84(twdX, twdY);
+        return { ...twd97ToWGS84(twdX, twdY), standardCode: cleaned };
     }
 
-    async function renderMarkers() {
+    async function renderMarkers(autoCollapseOnMobile = false) {
         markersLayer.clearLayers();
+        parsedCases = [];
         const listDiv = document.getElementById('list');
         listDiv.innerHTML = '';
         const lines = document.getElementById('input').value.trim().split('\n');
@@ -226,7 +306,7 @@ g3759aa7788"></textarea>
             if (!line) continue;
 
             let title = `案件 ${index + 1}`;
-            let lat = null, lng = null;
+            let lat = null, lng = null, standardCode = '';
 
             const parts = line.split(/\s+/);
             let payload = line;
@@ -243,22 +323,31 @@ g3759aa7788"></textarea>
             if (powerRes) {
                 lat = powerRes.lat;
                 lng = powerRes.lng;
+                standardCode = powerRes.standardCode;
             } else if (payload.includes(',')) {
                 const [la, ln] = payload.split(',');
                 lat = parseFloat(la);
                 lng = parseFloat(ln);
+                standardCode = `${lat.toFixed(5)},${lng.toFixed(5)}`;
             } else if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
                 lng = parseFloat(parts[0]);
                 lat = parseFloat(parts[1]);
+                standardCode = `${lat.toFixed(5)},${lng.toFixed(5)}`;
             }
 
             if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
                 bounds.push([lat, lng]);
 
+                parsedCases.push({
+                    title: title,
+                    code: standardCode,
+                    lat: lat,
+                    lng: lng
+                });
+
                 const marker = L.marker([lat, lng]).addTo(markersLayer);
 
-                // 案件點常駐標籤（名稱 + 路名）
-                marker.bindTooltip(`<b>${title}</b> <span class="road-text">(${payload})</span>`, {
+                marker.bindTooltip(`<b>${title}</b> <span class="road-text">(${standardCode})</span>`, {
                     permanent: true,
                     direction: 'top',
                     offset: [0, -10],
@@ -267,14 +356,16 @@ g3759aa7788"></textarea>
 
                 const item = document.createElement('div');
                 item.className = 'item';
-                item.innerHTML = `<b>${title}</b><br><span style="color:#666;font-size:11px;">${payload}</span> <span id="road-item-${index}" style="color:#007bff;font-size:11px;">(查詢路名中...)</span>`;
+                item.innerHTML = `<b>${title}</b><br><span style="color:#666;font-size:11px;">${standardCode}</span> <span id="road-item-${index}" style="color:#007bff;font-size:11px;"></span>`;
                 item.onclick = () => {
-                    map.flyTo([lat, lng], 16);
+                    map.flyTo([lat, lng], 17);
                     marker.openPopup();
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.add('collapsed');
+                    }
                 };
                 listDiv.appendChild(item);
 
-                // 逆查路名更新
                 fetchRoadName(lat, lng).then(road => {
                     const roadLabel = road ? ` | ${road}` : '';
                     marker.setTooltipContent(`<b>${title}</b> <span class="road-text">${roadLabel}</span>`);
@@ -283,14 +374,14 @@ g3759aa7788"></textarea>
                     marker.bindPopup(`
                         <b>${title}</b><br>
                         ${road ? `<b>路名: ${road}</b><br>` : ''}
-                        圖號/坐標: ${payload}<br>
+                        圖號/座標: ${standardCode}<br>
                         WGS84: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>
                         <a href="${googleNavUrl}" target="_blank" style="color:#007bff;font-weight:bold;">開啟 Google 導航</a>
                     `);
 
                     const itemRoadSpan = document.getElementById(`road-item-${index}`);
-                    if (itemRoadSpan) {
-                        itemRoadSpan.innerText = road ? `(${road})` : '';
+                    if (itemRoadSpan && road) {
+                        itemRoadSpan.innerText = `(${road})`;
                     }
                 });
             }
@@ -299,10 +390,40 @@ g3759aa7788"></textarea>
         if (bounds.length > 0) {
             map.fitBounds(bounds, { padding: [40, 40] });
         }
+
+        // 手機版點擊標記後自動收合輸入面板，露出全屏地圖
+        if (autoCollapseOnMobile && window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.add('collapsed');
+        }
+    }
+
+    // 一鍵複製排好的圖號座標，供巨擎導航直接貼上匯入
+    function copySortedList() {
+        if (parsedCases.length === 0) {
+            alert("目前尚無標記的案件，請先輸入並標記！");
+            return;
+        }
+
+        // 格式：案件名 圖號 (若無圖號則帶 緯度,經度)
+        const textToCopy = parsedCases.map(c => `${c.title} ${c.code}`).join('\n');
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            alert(`已成功複製 ${parsedCases.length} 筆案件！\n可直接開啟「巨擎導航」貼上匯入。`);
+        }).catch(() => {
+            // 相容性備案
+            const ta = document.createElement('textarea');
+            ta.value = textToCopy;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            alert(`已成功複製 ${parsedCases.length} 筆案件！\n可直接開啟「巨擎導航」貼上匯入。`);
+        });
     }
 
     function clearAll() {
         markersLayer.clearLayers();
+        parsedCases = [];
         document.getElementById('input').value = '';
         document.getElementById('list').innerHTML = '';
         map.setView([24.2100, 120.5500], 12);
