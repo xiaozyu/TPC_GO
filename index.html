@@ -11,7 +11,7 @@
         #sidebar { width: 340px; background: #f8f9fa; border-right: 1px solid #ccc; display: flex; flex-direction: column; padding: 15px; gap: 10px; z-index: 1000; }
         #map { flex: 1; height: 100%; }
         h3 { font-size: 16px; margin-bottom: 5px; }
-        textarea { width: 100%; height: 160px; padding: 8px; font-size: 13px; resize: none; border: 1px solid #bbb; border-radius: 4px; }
+        textarea { width: 100%; height: 150px; padding: 8px; font-size: 13px; resize: none; border: 1px solid #bbb; border-radius: 4px; font-family: monospace; }
         button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         button:hover { background: #0056b3; }
         .clear-btn { background: #6c757d; margin-top: 5px; }
@@ -20,6 +20,9 @@
         .item { background: white; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 6px; font-size: 13px; cursor: pointer; }
         .item:hover { border-color: #007bff; }
         .hint { font-size: 11px; color: #666; line-height: 1.4; }
+        .quick-stations { display: flex; flex-wrap: wrap; gap: 4px; border-top: 1px solid #ddd; padding-top: 8px; }
+        .quick-btn { background: #e9ecef; color: #333; font-size: 11px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; flex: 1 1 45%; }
+        .quick-btn:hover { background: #ced4da; }
     </style>
 </head>
 <body>
@@ -27,17 +30,28 @@
 <div id="sidebar">
     <h3>台電案件快速標記</h3>
     <div class="hint">
-        格式：每行一筆，支援以下格式：<br>
-        1. <code>案號 緯度,經度</code><br>
-        2. <code>緯度,經度</code><br>
-        3. <code>案號 台電9碼圖號</code> (例: <code>A1 E1234AA56</code>)
+        支援大小寫混打、空格混雜、S延伸區段：<br>
+        1. <code>案號 G4353AE54</code> 或 <code>g4464sa97</code><br>
+        2. <code>緯度,經度</code> 或 <code>經度 緯度</code><br>
+        3. 單純輸入圖號 (例：<code>g3759aa7788</code>)
     </div>
     <textarea id="input" placeholder="例如：
-案件1 24.1824,120.5482
-案件2 24.1611,120.5213
-大肚案件 24.1530,120.5420"></textarea>
+g4353ae54
+案件2 g4464bb88
+大甲案件 g4464sa97
+g3759aa7788"></textarea>
     <button onclick="renderMarkers()">在地圖上標記點位</button>
     <button class="clear-btn" onclick="clearAll()">清空重填</button>
+    
+    <div class="quick-stations">
+        <button class="quick-btn" onclick="locateBase(0)">龍井服務所</button>
+        <button class="quick-btn" onclick="locateBase(1)">沙鹿服務所</button>
+        <button class="quick-btn" onclick="locateBase(2)">南勢溪公園</button>
+        <button class="quick-btn" onclick="locateBase(3)">萬興陸橋</button>
+        <button class="quick-btn" onclick="locateBase(4)">中華向上陸橋</button>
+        <button class="quick-btn" onclick="locateBase(5)">國三沙田交叉</button>
+    </div>
+
     <div id="list"></div>
 </div>
 
@@ -45,28 +59,105 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // 預設中心：龍井服務所周邊 (24.1956, 120.5460)
-    const map = L.map('map').setView([24.1850, 120.5400], 13);
+    const map = L.map('map').setView([24.2100, 120.5500], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    // 固定標記：台電台中區處龍井服務所
-    const officeLatLng = [24.19277, 120.54595];
-    L.marker(officeLatLng, {
-        icon: L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-        })
-    }).addTo(map).bindPopup('<b>【終點交件】台電龍井服務所</b>');
+    // 常駐公務與午休地標清單
+    const baseLocations = [
+        { name: "台電龍井服務所", lat: 24.19277, lng: 120.54595, color: "green", desc: "公務/出勤點" },
+        { name: "台電沙鹿服務所", lat: 24.23078, lng: 120.56306, color: "green", desc: "公務/出勤點" },
+        { name: "南勢溪公園", lat: 24.22550, lng: 120.56470, color: "orange", desc: "常駐午休點" },
+        { name: "萬興陸橋周邊", lat: 24.17250, lng: 120.54220, color: "orange", desc: "常駐午休點" },
+        { name: "中華向上陸橋周邊", lat: 24.21520, lng: 120.53680, color: "orange", desc: "常駐午休點" },
+        { name: "國三沙田交叉口", lat: 24.16100, lng: 120.53850, color: "orange", desc: "常駐停駐點" }
+    ];
+
+    const baseMarkers = [];
+    baseLocations.forEach(loc => {
+        const marker = L.marker([loc.lat, loc.lng], {
+            icon: L.icon({
+                iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${loc.color}.png`,
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+            })
+        }).addTo(map).bindPopup(`<b>【${loc.desc}】${loc.name}</b><br><a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank">開啟導航</a>`);
+        baseMarkers.push(marker);
+    });
 
     let markersLayer = L.layerGroup().addTo(map);
 
-    // 台電 9 碼/11 碼圖號轉 TWD97 -> WGS84 簡易演算法 (大甲/台中區域基準)
-    function tpcToWgs84(code) {
-        // 若直接是經緯度格式，不處理直接回傳
-        return null; 
+    function locateBase(index) {
+        const target = baseLocations[index];
+        map.flyTo([target.lat, target.lng], 16);
+        baseMarkers[index].openPopup();
+    }
+
+    // TWD97 TM2 轉 WGS84 投影解算
+    function twd97ToWGS84(x, y) {
+        const a = 6378137.0, b = 6356752.314245;
+        const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
+        const e = Math.sqrt(1 - (b * b) / (a * a)), e2 = e * e / (1 - e * e);
+        
+        x = x - dx;
+        const m = y / k0;
+        const mu = m / (a * (1 - e * e / 4 - 3 * e * e * e * e / 64 - 5 * e * e * e * e * e * e / 256));
+        const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
+        
+        const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
+        const j3 = 151 * e1 * e1 * e1 / 96;
+        
+        const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
+        const c1 = e2 * Math.cos(fp) * Math.cos(fp);
+        const t1 = Math.tan(fp) * Math.tan(fp);
+        const r1 = a * (1 - e * e) / Math.pow(1 - e * e * Math.sin(fp) * Math.sin(fp), 1.5);
+        const n1 = a / Math.sqrt(1 - e * e * Math.sin(fp) * Math.sin(fp));
+        const d = x / (n1 * k0);
+        
+        const lat = fp - (n1 * Math.tan(fp) / r1) * (d * d / 2 - (5 + 3 * t1 + 10 * c1 - 4 * c1 * c1 - 9 * e2) * d * d * d * d / 24);
+        const lon = lon0 + (d - (1 + 2 * t1 + c1) * d * d * d / 6) / Math.cos(fp);
+        
+        return { lat: lat * 180 / Math.PI, lng: lon * 180 / Math.PI };
+    }
+
+    // 台電圖號直接轉經緯度 (支援髒數據、S延伸網格運算)
+    function parsePowerCoord(codeStr) {
+        const cleaned = codeStr.replace(/\s+/g, '').toUpperCase();
+        
+        // 正則相容 9 碼或 11 碼圖號 (支援 S 在內的英文代號)
+        const match = cleaned.match(/^([A-HJ-Z])(\d{2})(\d{2})([A-Z])([A-Z])(\d{2}|\d{4})$/);
+        if (!match) return null;
+
+        const [_, zone, xMap, yMap, subX, subY, pt] = match;
+
+        // 台電分區原點基準 (TWD97 原點定義)
+        const originMap = {
+            'A': [170000, 2750000], 'B': [250000, 2750000],
+            'C': [170000, 2700000], 'D': [250000, 2700000],
+            'E': [170000, 2650000], 'F': [250000, 2650000],
+            'G': [170000, 2650000], 'H': [250000, 2600000]
+        };
+
+        const baseOrigin = originMap[zone] || [170000, 2650000];
+        let twdX = baseOrigin[0] + parseInt(xMap, 10) * 800;
+        let twdY = baseOrigin[1] + parseInt(yMap, 10) * 500;
+
+        // 100m 區塊偏移 (直接支援 S 延伸計算)
+        twdX += (subX.charCodeAt(0) - 65) * 100;
+        twdY += (subY.charCodeAt(0) - 65) * 100;
+
+        // 10m 或 1m 點位偏移
+        if (pt.length === 2) {
+            twdX += parseInt(pt[0], 10) * 10;
+            twdY += parseInt(pt[1], 10) * 10;
+        } else if (pt.length === 4) {
+            twdX += parseInt(pt.substring(0, 2), 10);
+            twdY += parseInt(pt.substring(2, 4), 10);
+        }
+
+        return twd97ToWGS84(twdX, twdY);
     }
 
     function renderMarkers() {
@@ -74,7 +165,9 @@
         const listDiv = document.getElementById('list');
         listDiv.innerHTML = '';
         const lines = document.getElementById('input').value.trim().split('\n');
-        const bounds = [officeLatLng];
+        const bounds = [];
+
+        baseLocations.forEach(loc => bounds.push([loc.lat, loc.lng]));
 
         lines.forEach((line, index) => {
             line = line.trim();
@@ -83,15 +176,33 @@
             let title = `案件 ${index + 1}`;
             let lat = null, lng = null;
 
-            // 支援空白隔開「名稱 座標」
+            // 拆分案件名稱與坐標資料
             const parts = line.split(/\s+/);
-            let coordStr = parts.length > 1 ? parts[1] : parts[0];
-            if (parts.length > 1) title = parts[0];
+            let payload = line;
 
-            if (coordStr.includes(',')) {
-                const [la, ln] = coordStr.split(',');
+            if (parts.length >= 2) {
+                // 若最後一段符合圖號或坐標結構
+                const testCoord = parsePowerCoord(parts[parts.length - 1]);
+                if (testCoord || parts[parts.length - 1].includes(',')) {
+                    payload = parts.pop();
+                    title = parts.join(' ');
+                }
+            }
+
+            // 1. 嘗試圖號解析 (含 S 計算)
+            const powerRes = parsePowerCoord(payload);
+            if (powerRes) {
+                lat = powerRes.lat;
+                lng = powerRes.lng;
+            } else if (payload.includes(',')) {
+                // 2. 嘗試 緯度,經度
+                const [la, ln] = payload.split(',');
                 lat = parseFloat(la);
                 lng = parseFloat(ln);
+            } else if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                // 3. 嘗試 經度 緯度
+                lng = parseFloat(parts[0]);
+                lat = parseFloat(parts[1]);
             }
 
             if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
@@ -101,15 +212,15 @@
                 const googleNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
                 const popupContent = `
                     <b>${title}</b><br>
-                    座標: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>
-                    <a href="${googleNavUrl}" target="_blank" style="color:blue;">開啟 Google 導航</a>
+                    代碼/座標: ${payload}<br>
+                    WGS84: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>
+                    <a href="${googleNavUrl}" target="_blank" style="color:#007bff;font-weight:bold;">開啟 Google 導航</a>
                 `;
                 marker.bindPopup(popupContent);
 
-                // 側邊欄列表
                 const item = document.createElement('div');
                 item.className = 'item';
-                item.innerHTML = `<b>${title}</b> (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+                item.innerHTML = `<b>${title}</b><br><span style="color:#666;font-size:11px;">${payload}</span>`;
                 item.onclick = () => {
                     map.flyTo([lat, lng], 16);
                     marker.openPopup();
@@ -118,7 +229,7 @@
             }
         });
 
-        if (bounds.length > 1) {
+        if (bounds.length > 0) {
             map.fitBounds(bounds, { padding: [40, 40] });
         }
     }
@@ -127,7 +238,7 @@
         markersLayer.clearLayers();
         document.getElementById('input').value = '';
         document.getElementById('list').innerHTML = '';
-        map.setView(officeLatLng, 13);
+        map.setView([24.2100, 120.5500], 12);
     }
 </script>
 </body>
