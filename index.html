@@ -14,6 +14,7 @@
     <link id="dynamic-manifest" rel="manifest">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -140,7 +141,6 @@
             box-shadow: 0 0 12px #a855f7;
         }
 
-        /* 氣泡底色改為 90% 不透明度 (rgba alpha 0.9) */
         .case-label-large {
             background: rgba(220, 38, 38, 0.9);
             border: 2px solid #ef4444;
@@ -505,6 +505,7 @@
     });
 
     const defaultBases = [
+        { name: "梧棲服務所", lat: 24.259452, lng: 120.536207, type: "station", desc: "台電公務點", permanent: true },
         { name: "清水服務所", lat: 24.269184, lng: 120.576343, type: "station", desc: "台電公務點", permanent: true },
         { name: "沙鹿服務所", lat: 24.230309, lng: 120.565418, type: "station", desc: "台電公務點", permanent: true },
         { name: "龍井服務所", lat: 24.193150, lng: 120.546019, type: "station", desc: "台電公務點", permanent: true },
@@ -618,7 +619,6 @@
     let watchPositionId = null;
     let activeRoutePolyline = null;
 
-    // 按下氣球僅在地圖上顯示路徑線與視野適配，不自動啟動外部導航
     async function drawSimpleRoute(targetLat, targetLng) {
         if (!userLatLng) {
             navigator.geolocation.getCurrentPosition(
@@ -672,7 +672,7 @@
         const c = e2 * Math.cos(phi) * Math.cos(phi);
         const A_val = (lam - lon0) * Math.cos(phi);
 
-        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 1024) * phi
+        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256) * phi
             - (3 * e * e / 8 + 3 * Math.pow(e, 4) / 32 + 45 * Math.pow(e, 6) / 1024) * Math.sin(2 * phi)
             + (15 * Math.pow(e, 4) / 256 + 45 * Math.pow(e, 6) / 1024) * Math.sin(4 * phi)
             - (35 * Math.pow(e, 6) / 3072) * Math.sin(6 * phi));
@@ -1094,7 +1094,6 @@
             }).addTo(markersLayer);
             c.marker = marker;
 
-            // 點擊案件觸發路徑繪製與彈窗
             const onMarkerTrigger = (e) => {
                 L.DomEvent.stopPropagation(e);
                 closeMobileSidebar();
