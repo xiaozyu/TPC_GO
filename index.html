@@ -140,8 +140,9 @@
             box-shadow: 0 0 12px #a855f7;
         }
 
+        /* 氣泡底色改為 90% 不透明度 (rgba alpha 0.9) */
         .case-label-large {
-            background: rgba(220, 38, 38, 0.65);
+            background: rgba(220, 38, 38, 0.9);
             border: 2px solid #ef4444;
             color: #ffffff;
             font-size: 11px;
@@ -155,7 +156,7 @@
             transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
         }
         .case-label-large.done-case {
-            background: rgba(16, 185, 129, 0.65) !important;
+            background: rgba(16, 185, 129, 0.9) !important;
             border-color: #10b981 !important;
             color: #d1fae5 !important;
         }
@@ -574,6 +575,7 @@
             const openBaseAction = (e) => {
                 L.DomEvent.stopPropagation(e);
                 closeMobileSidebar();
+                drawSimpleRoute(loc.lat, loc.lng);
                 marker.openPopup();
             };
 
@@ -614,6 +616,48 @@
     let isTapSortMode = false;
     let tapSortedOrder = [];
     let watchPositionId = null;
+    let activeRoutePolyline = null;
+
+    // 按下氣球僅在地圖上顯示路徑線與視野適配，不自動啟動外部導航
+    async function drawSimpleRoute(targetLat, targetLng) {
+        if (!userLatLng) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    userLatLng = [pos.coords.latitude, pos.coords.longitude];
+                    fetchAndRenderPolyline(targetLat, targetLng);
+                },
+                () => {},
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        } else {
+            fetchAndRenderPolyline(targetLat, targetLng);
+        }
+    }
+
+    async function fetchAndRenderPolyline(targetLat, targetLng) {
+        if (activeRoutePolyline) {
+            map.removeLayer(activeRoutePolyline);
+            activeRoutePolyline = null;
+        }
+
+        try {
+            const url = `https://router.project-osrm.org/route/v1/driving/${userLatLng[1]},${userLatLng[0]};${targetLng},${targetLat}?overview=full&geometries=geojson`;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error();
+            const data = await resp.json();
+            if (data.routes && data.routes.length > 0) {
+                const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                activeRoutePolyline = L.polyline(coords, { color: '#00f0ff', weight: 6, opacity: 0.85 }).addTo(map);
+                map.fitBounds(activeRoutePolyline.getBounds(), { padding: [60, 60] });
+                return;
+            }
+        } catch (err) {}
+
+        activeRoutePolyline = L.polyline([[userLatLng[0], userLatLng[1]], [targetLat, targetLng]], {
+            color: '#00f0ff', weight: 5, dashArray: '6, 8', opacity: 0.85
+        }).addTo(map);
+        map.fitBounds(activeRoutePolyline.getBounds(), { padding: [60, 60] });
+    }
 
     function wgs84ToTWD97(lat, lon) {
         const a = 6378137.0, b = 6356752.314245;
@@ -628,7 +672,7 @@
         const c = e2 * Math.cos(phi) * Math.cos(phi);
         const A_val = (lam - lon0) * Math.cos(phi);
 
-        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256) * phi
+        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 1024) * phi
             - (3 * e * e / 8 + 3 * Math.pow(e, 4) / 32 + 45 * Math.pow(e, 6) / 1024) * Math.sin(2 * phi)
             + (15 * Math.pow(e, 4) / 256 + 45 * Math.pow(e, 6) / 1024) * Math.sin(4 * phi)
             - (35 * Math.pow(e, 6) / 3072) * Math.sin(6 * phi));
@@ -865,6 +909,7 @@
         const openInspectAction = (e) => {
             L.DomEvent.stopPropagation(e);
             closeMobileSidebar();
+            drawSimpleRoute(lat, lng);
             inspectMarker.openPopup();
         };
 
@@ -888,7 +933,7 @@
             ${road ? `路名: <b>${road}</b><br>` : ''}
             台電圖號: <b style="color:#7e22ce;font-size:15px;">${code}</b> (已自動複製)<br>
             坐標: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br><br>
-            <button onclick="openGoogleMaps(${lat}, ${lng})" style="background:#2563eb;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">🧭 開啟 Google Maps 外部導航</button>
+            <button onclick="openGoogleMaps(${lat}, ${lng})" style="background:#2563eb;padding:9px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:13px;margin-bottom:6px;">🧭 開啟 Google Maps 導航</button>
             <button onclick="silentCopy('${code}'); this.innerText='✓ 已複製';" style="background:#475569;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">📋 再次複製圖號</button>
             <button onclick="promptAddCustomBase(${lat}, ${lng}, '${road || code}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">⭐ 儲存為常用永久據點</button>
         `).openPopup();
@@ -990,7 +1035,6 @@
         refreshMarkersAndList();
 
         document.getElementById('input').value = parsedCases.map(c => `${c.rawName} ${c.code}`).join('\n');
-        alert("已依當前位置自動排定最近路徑順序！");
     }
 
     const listContainer = document.getElementById('list');
@@ -1050,6 +1094,7 @@
             }).addTo(markersLayer);
             c.marker = marker;
 
+            // 點擊案件觸發路徑繪製與彈窗
             const onMarkerTrigger = (e) => {
                 L.DomEvent.stopPropagation(e);
                 closeMobileSidebar();
@@ -1057,6 +1102,7 @@
                     const targetEl = e.target && e.target.getElement ? e.target.getElement() : null;
                     handleCaseMarkerClick(c, targetEl);
                 } else {
+                    drawSimpleRoute(c.lat, c.lng);
                     marker.openPopup();
                 }
             };
@@ -1083,6 +1129,7 @@
                     const el = tooltip.getElement();
                     handleCaseMarkerClick(c, el);
                 } else {
+                    drawSimpleRoute(c.lat, c.lng);
                     marker.openPopup();
                 }
             });
@@ -1116,6 +1163,7 @@
             `;
             item.onclick = () => {
                 map.flyTo([c.lat, c.lng], 17);
+                drawSimpleRoute(c.lat, c.lng);
                 marker.openPopup();
                 closeMobileSidebar();
             };
@@ -1194,7 +1242,6 @@
             document.getElementById('input').value = parsedCases.map(c => `${c.rawName} ${c.code}`).join('\n');
             refreshMarkersAndList();
 
-            // 佇列依序請求 OSM 路名（每秒限流 1 次，徹底避免 429 拒絕連線）
             const pendingFetch = parsedCases.filter(c => !c.road);
             let delay = 0;
             pendingFetch.forEach(c => {
@@ -1284,6 +1331,10 @@
     }
 
     function clearAll() {
+        if (activeRoutePolyline) {
+            map.removeLayer(activeRoutePolyline);
+            activeRoutePolyline = null;
+        }
         markersLayer.clearLayers();
         if (inspectMarker) map.removeLayer(inspectMarker);
         parsedCases = [];
