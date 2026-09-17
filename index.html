@@ -121,19 +121,30 @@
             color: #ffffff;
             box-shadow: 0 0 12px #22c55e;
         }
+        .float-btn.pin-mode-active {
+            background: #a855f7;
+            color: #ffffff;
+            box-shadow: 0 0 12px #a855f7;
+        }
 
         .case-label-large {
             background: rgba(220, 38, 38, 0.95);
             border: 2px solid #ffffff;
             color: #ffffff;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 800;
-            padding: 4px 8px;
+            padding: 3px 6px;
             border-radius: 6px;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.5);
             white-space: nowrap;
             cursor: pointer !important;
             pointer-events: auto !important;
+            transition: transform 0.15s ease, z-index 0.15s ease;
+        }
+        .case-label-large:hover, .case-label-large:active {
+            transform: scale(1.15);
+            z-index: 99999 !important;
+            background: #b91c1c;
         }
         .case-road-text { color: #fef08a; font-weight: bold; font-size: 11px; margin-left: 4px; }
 
@@ -245,11 +256,29 @@
             max-width: 90vw;
         }
 
+        #pinModeBanner {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(168, 85, 247, 0.95);
+            border: 2px solid #ffffff;
+            border-radius: 10px;
+            padding: 8px 14px;
+            color: white;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
         .leaflet-routing-container {
             display: none !important;
         }
 
-        /* 3D 行車導航 HUD 模式 */
         .driving-mode .leaflet-map-pane {
             transform: perspective(800px) rotateX(45deg);
             transform-origin: 50% 85%;
@@ -312,8 +341,14 @@
     <button onclick="stopInPageNav()" style="background:#dc2626; border:none; color:white; padding:5px 10px; border-radius:4px; font-size:12px; cursor:pointer; width:auto; font-weight:bold;">結束導航</button>
 </div>
 
+<div id="pinModeBanner">
+    <span>📍 請在畫面上點選欲標記的位置...</span>
+    <button onclick="toggleAddPinMode()" style="background:#4b5563; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; width:auto;">取消</button>
+</div>
+
 <div class="floating-controls">
     <div class="float-btn mobile-toggle-btn" onclick="toggleMobileSidebar()" title="案件選單">📋</div>
+    <div class="float-btn" id="addPinBtn" onclick="toggleAddPinMode()" title="點選地圖新增標點">📍</div>
     <div class="float-btn" id="trackingBtn" onclick="toggleLiveTracking()" title="開關即時動態追蹤定位">🚗</div>
 </div>
 
@@ -447,10 +482,25 @@
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
-    let didLongPressTrigger = false;
-    map.on('click', () => {
-        if (didLongPressTrigger) {
-            didLongPressTrigger = false;
+    let isAddPinMode = false;
+    function toggleAddPinMode() {
+        isAddPinMode = !isAddPinMode;
+        const btn = document.getElementById('addPinBtn');
+        const banner = document.getElementById('pinModeBanner');
+        if (isAddPinMode) {
+            btn.classList.add('pin-mode-active');
+            banner.style.display = 'flex';
+            closeMobileSidebar();
+        } else {
+            btn.classList.remove('pin-mode-active');
+            banner.style.display = 'none';
+        }
+    }
+
+    map.on('click', (e) => {
+        if (isAddPinMode) {
+            toggleAddPinMode();
+            triggerInspectAction(e.latlng);
             return;
         }
         closeMobileSidebar();
@@ -624,7 +674,6 @@
             banner.style.display = 'flex';
         });
 
-        // 啟動 3D 行車導航 HUD 模式
         document.getElementById('map').classList.add('driving-mode');
         map.setView(userLatLng, 18, { animate: false });
 
@@ -657,7 +706,7 @@
         const c = e2 * Math.cos(phi) * Math.cos(phi);
         const A_val = (lam - lon0) * Math.cos(phi);
 
-        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256) * phi
+        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 1024) * phi
             - (3 * e * e / 8 + 3 * Math.pow(e, 4) / 32 + 45 * Math.pow(e, 6) / 1024) * Math.sin(2 * phi)
             + (15 * Math.pow(e, 4) / 256 + 45 * Math.pow(e, 6) / 1024) * Math.sin(4 * phi)
             - (35 * Math.pow(e, 6) / 3072) * Math.sin(6 * phi));
@@ -799,7 +848,6 @@
         const newLat = pos.coords.latitude;
         const newLng = pos.coords.longitude;
 
-        // 防晃動濾波：若位移小於 3 公尺 (約 0.00003 度) 不重複震盪視野
         if (userLatLng) {
             const dLat = Math.abs(newLat - userLatLng[0]);
             const dLng = Math.abs(newLng - userLatLng[1]);
@@ -846,7 +894,6 @@
         }
 
         if (centerMap) {
-            // 平滑平移取代 fitBounds，完全避免視角晃動縮放
             map.panTo(userLatLng, { animate: true, duration: 0.8 });
         }
     }
@@ -881,20 +928,7 @@
         if (inspectMarker) map.removeLayer(inspectMarker);
     }
 
-    // 手機長按精準核心邏輯 (原生 Touch 控制，解決晃動與衝突)
-    let pressTimer = null;
-    let touchOrigin = { x: 0, y: 0 };
-    const mapDiv = document.getElementById('map');
-
-    function cancelTimer() {
-        if (pressTimer) {
-            clearTimeout(pressTimer);
-            pressTimer = null;
-        }
-    }
-
     async function triggerInspectAction(latlng) {
-        didLongPressTrigger = true;
         const lat = latlng.lat;
         const lng = latlng.lng;
         const code = coordToPowerCode(lat, lng);
@@ -948,39 +982,6 @@
             <button onclick="promptAddCustomBase(${lat}, ${lng}, '${road || code}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">⭐ 儲存為常用永久據點</button>
         `).openPopup();
     }
-
-    // 電腦滑鼠事件
-    map.on('mousedown', (e) => {
-        cancelTimer();
-        pressTimer = setTimeout(() => triggerInspectAction(e.latlng), 500);
-    });
-    map.on('mouseup mousemove', cancelTimer);
-
-    // 手機觸控原生監聽 (防手震容差提高至 18px，確保手機長按必成功)
-    mapDiv.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 1) {
-            cancelTimer();
-            const t = e.touches[0];
-            touchOrigin = { x: t.clientX, y: t.clientY };
-            pressTimer = setTimeout(() => {
-                const pt = map.containerPointToLatLng([t.clientX, t.clientY]);
-                triggerInspectAction(pt);
-            }, 550);
-        }
-    }, { passive: true });
-
-    mapDiv.addEventListener('touchmove', (e) => {
-        if (pressTimer && e.touches.length === 1) {
-            const t = e.touches[0];
-            const dist = Math.hypot(t.clientX - touchOrigin.x, t.clientY - touchOrigin.y);
-            if (dist > 18) {
-                cancelTimer();
-            }
-        }
-    }, { passive: true });
-
-    mapDiv.addEventListener('touchend', cancelTimer, { passive: true });
-    mapDiv.addEventListener('touchcancel', cancelTimer, { passive: true });
 
     let markersLayer = L.layerGroup().addTo(map);
 
@@ -1056,8 +1057,28 @@
         const bounds = [];
         allBaseLocations.forEach(loc => bounds.push([loc.lat, loc.lng]));
 
+        const directions = ['top', 'bottom', 'right', 'left'];
+        const offsets = [
+            [0, -12],
+            [0, 12],
+            [14, 0],
+            [-14, 0]
+        ];
+
         parsedCases.forEach((c, idx) => {
             bounds.push([c.lat, c.lng]);
+
+            let nearbyCount = 0;
+            for (let j = 0; j < idx; j++) {
+                const prev = parsedCases[j];
+                const d = Math.hypot(c.lat - prev.lat, c.lng - prev.lng);
+                if (d < 0.0012) {
+                    nearbyCount++;
+                }
+            }
+
+            const chosenDir = directions[nearbyCount % directions.length];
+            const chosenOffset = offsets[nearbyCount % offsets.length];
 
             const marker = L.marker([c.lat, c.lng], {
                 icon: L.icon({
@@ -1067,11 +1088,12 @@
                     iconAnchor: [12, 41],
                     popupAnchor: [1, -34],
                     shadowSize: [41, 41]
-                })
+                }),
+                zIndexOffset: (idx + 1) * 10
             }).addTo(markersLayer);
             c.marker = marker;
 
-            marker.on('click', (e) => {
+            const onMarkerTrigger = (e) => {
                 L.DomEvent.stopPropagation(e);
                 closeMobileSidebar();
                 if (isTapSortMode) {
@@ -1079,28 +1101,22 @@
                 } else {
                     marker.openPopup();
                 }
-            });
+            };
+
+            marker.on('click', onMarkerTrigger);
 
             const title = `案件 ${c.displayIndex}`;
             const roadLabel = c.road ? ` | ${c.road}` : '';
 
             const tooltip = marker.bindTooltip(`<b>${title}</b> ${c.code}<span class="case-road-text">${roadLabel}</span>`, {
                 permanent: true,
-                direction: 'top',
-                offset: [0, -12],
+                direction: chosenDir,
+                offset: chosenOffset,
                 className: 'case-label-large',
                 interactive: true
             });
 
-            tooltip.on('click', (e) => {
-                L.DomEvent.stopPropagation(e);
-                closeMobileSidebar();
-                if (isTapSortMode) {
-                    handleCaseMarkerClick(c);
-                } else {
-                    marker.openPopup();
-                }
-            });
+            tooltip.on('click', onMarkerTrigger);
 
             marker.bindPopup(`
                 <b style="font-size:15px;color:#dc2626;">${title} (${c.rawName})</b><br>
