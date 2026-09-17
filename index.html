@@ -14,6 +14,7 @@
     <link id="dynamic-manifest" rel="manifest">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -72,32 +73,6 @@
         .copy-btn { background: #16a34a; }
         .clear-btn { background: #4b5563; padding: 5px; font-size: 11px; }
         .install-btn { background: #9333ea; display: none; }
-
-        .quick-stations { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 4px; 
-            border-top: 1px solid #1f2937; 
-            padding-top: 6px; 
-            max-height: 140px; 
-            overflow-y: auto; 
-        }
-        .quick-btn { 
-            background: #1f2937; 
-            color: #cbd5e1; 
-            font-size: 11px; 
-            padding: 5px 2px; 
-            border: 1px solid #374151; 
-            border-radius: 4px; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            white-space: nowrap; 
-            cursor: pointer;
-        }
-        .quick-btn.custom-btn {
-            border-color: #a855f7;
-            color: #d8b4fe;
-        }
 
         #list { flex: 1; overflow-y: auto; border-top: 1px solid #1f2937; padding-top: 6px; -webkit-overflow-scrolling: touch; }
         
@@ -248,6 +223,28 @@
             cursor: pointer;
         }
 
+        #navBanner {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid #38bdf8;
+            border-radius: 10px;
+            padding: 10px 16px;
+            color: white;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            gap: 12px;
+            max-width: 90vw;
+        }
+
+        .leaflet-routing-container {
+            display: none !important;
+        }
+
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #sidebar {
@@ -294,13 +291,15 @@
         <button class="clear-btn" onclick="clearAll()">清空重填</button>
     </div>
 
-    <div style="font-size:11px;color:#38bdf8;font-weight:bold;margin-top:4px;">固定據點與常用地標 (長按自訂點位可刪除)：</div>
-    <div class="quick-stations" id="quickStationsBar"></div>
-
     <div id="list"></div>
 </div>
 
 <div id="map"></div>
+
+<div id="navBanner">
+    <div id="navBannerText" style="font-size:13px; font-weight:bold;">導航中...</div>
+    <button onclick="stopInPageNav()" style="background:#dc2626; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; width:auto;">結束導航</button>
+</div>
 
 <div class="floating-controls">
     <div class="float-btn mobile-toggle-btn" onclick="toggleMobileSidebar()" title="案件選單">📋</div>
@@ -308,6 +307,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 <script>
     function generateAppIcon(size) {
         const canvas = document.createElement('canvas');
@@ -436,6 +436,15 @@
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
+    let didLongPressTrigger = false;
+    map.on('click', () => {
+        if (didLongPressTrigger) {
+            didLongPressTrigger = false;
+            return;
+        }
+        closeMobileSidebar();
+    });
+
     const defaultBases = [
         { name: "清水服務所", lat: 24.269184, lng: 120.576343, type: "station", desc: "台電公務點", permanent: true },
         { name: "沙鹿服務所", lat: 24.230309, lng: 120.565418, type: "station", desc: "台電公務點", permanent: true },
@@ -472,9 +481,6 @@
         baseMarkers.forEach(m => map.removeLayer(m));
         baseMarkers.length = 0;
         allBaseLocations = [...defaultBases, ...customLocations];
-
-        const bar = document.getElementById('quickStationsBar');
-        bar.innerHTML = '';
 
         allBaseLocations.forEach((loc, idx) => {
             let iconClass = 'icon-rest';
@@ -514,6 +520,7 @@
 
             tooltip.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
+                closeMobileSidebar();
                 marker.openPopup();
             });
 
@@ -525,37 +532,11 @@
 
             marker.bindPopup(`
                 <b style="font-size:14px;color:#1e293b;">【${loc.desc}】${loc.name}</b><br><br>
-                <button onclick="openGoogleMaps(${loc.lat}, ${loc.lng})" style="background:#2563eb;padding:9px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:13px;">🧭 開啟 Google Maps 導航</button>
+                <button onclick="startInPageNav(${loc.lat}, ${loc.lng}, '${loc.name}')" style="background:#16a34a;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:6px;">🚀 頁面內直接路徑導航</button>
+                <button onclick="openGoogleMaps(${loc.lat}, ${loc.lng})" style="background:#2563eb;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">🧭 開啟 Google Maps 外部導航</button>
                 ${deleteBtnHtml}
             `);
             baseMarkers.push(marker);
-
-            const qBtn = document.createElement('button');
-            qBtn.className = 'quick-btn' + (loc.permanent ? '' : ' custom-btn');
-            qBtn.innerText = loc.name;
-            qBtn.onclick = () => locateBase(idx);
-
-            if (!loc.permanent) {
-                let pressTimer;
-                const startPress = () => {
-                    pressTimer = setTimeout(() => {
-                        if (confirm(`確定要刪除常用地標「${loc.name}」嗎？`)) {
-                            deleteCustomLocation(idx - defaultBases.length);
-                        }
-                    }, 800);
-                };
-                const cancelPress = () => {
-                    if (pressTimer) clearTimeout(pressTimer);
-                };
-
-                qBtn.addEventListener('mousedown', startPress);
-                qBtn.addEventListener('touchstart', startPress);
-                qBtn.addEventListener('mouseup', cancelPress);
-                qBtn.addEventListener('mouseleave', cancelPress);
-                qBtn.addEventListener('touchend', cancelPress);
-            }
-
-            bar.appendChild(qBtn);
         });
     }
 
@@ -569,6 +550,76 @@
     let isTapSortMode = false;
     let tapSortedOrder = [];
     let watchPositionId = null;
+    let routingControl = null;
+    let activeNavTarget = null;
+
+    function startInPageNav(targetLat, targetLng, targetName) {
+        map.closePopup();
+        closeMobileSidebar();
+
+        if (!userLatLng) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    updateLivePosition(pos, false);
+                    executeRouting(targetLat, targetLng, targetName);
+                },
+                () => {
+                    alert("無法獲取目前位置，請確認 GPS 與瀏覽器定位權限。");
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        } else {
+            executeRouting(targetLat, targetLng, targetName);
+        }
+    }
+
+    function executeRouting(targetLat, targetLng, targetName) {
+        if (routingControl) {
+            map.removeControl(routingControl);
+            routingControl = null;
+        }
+
+        activeNavTarget = { lat: targetLat, lng: targetLng, name: targetName };
+
+        routingControl = L.Routing.control({
+            waypoints: [
+                L.latLng(userLatLng[0], userLatLng[1]),
+                L.latLng(targetLat, targetLng)
+            ],
+            lineOptions: {
+                styles: [{ color: '#38bdf8', opacity: 0.9, weight: 6 }]
+            },
+            addWaypoints: false,
+            draggableWaypoints: false,
+            fitSelectedRoutes: true,
+            show: false,
+            createMarker: () => null
+        }).addTo(map);
+
+        routingControl.on('routesfound', function(e) {
+            const routes = e.routes;
+            const summary = routes[0].summary;
+            const km = (summary.totalDistance / 1000).toFixed(1);
+            const mins = Math.round(summary.totalTime / 60);
+            
+            const banner = document.getElementById('navBanner');
+            document.getElementById('navBannerText').innerText = `導航至【${targetName}】: 約 ${km} 公里 (${mins} 分鐘)`;
+            banner.style.display = 'flex';
+        });
+
+        if (watchPositionId === null) {
+            toggleLiveTracking();
+        }
+    }
+
+    function stopInPageNav() {
+        if (routingControl) {
+            map.removeControl(routingControl);
+            routingControl = null;
+        }
+        activeNavTarget = null;
+        document.getElementById('navBanner').style.display = 'none';
+    }
 
     function wgs84ToTWD97(lat, lon) {
         const a = 6378137.0, b = 6356752.314245;
@@ -739,6 +790,7 @@
 
             myTooltip.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
+                closeMobileSidebar();
                 userMarker.openPopup();
             });
         }
@@ -750,6 +802,13 @@
             <button onclick="silentCopy('${myCode}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">📋 複製目前圖號</button>
             <button onclick="promptAddCustomBase(${userLatLng[0]}, ${userLatLng[1]}, '${myCode}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">⭐ 儲存為常用據點</button>
         `);
+
+        if (routingControl && activeNavTarget) {
+            routingControl.setWaypoints([
+                L.latLng(userLatLng[0], userLatLng[1]),
+                L.latLng(activeNavTarget.lat, activeNavTarget.lng)
+            ]);
+        }
 
         if (centerMap) {
             map.panTo(userLatLng);
@@ -787,9 +846,12 @@
     }
 
     let pressTimer = null;
+    let touchStartPos = null;
+
     function startLongPress(latlng) {
         cancelLongPress();
         pressTimer = setTimeout(async () => {
+            didLongPressTrigger = true;
             const lat = latlng.lat;
             const lng = latlng.lng;
             const code = coordToPowerCode(lat, lng);
@@ -822,6 +884,7 @@
 
             inspTooltip.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
+                closeMobileSidebar();
                 inspectMarker.openPopup();
             });
 
@@ -830,8 +893,9 @@
                 ${road ? `路名: <b>${road}</b><br>` : ''}
                 台電圖號: <b style="color:#7e22ce;font-size:15px;">${code}</b> (已自動複製)<br>
                 坐標: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br><br>
-                <button onclick="openGoogleMaps(${lat}, ${lng})" style="background:#2563eb;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">🧭 開啟 Google Maps 導航</button>
-                <button onclick="silentCopy('${code}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">📋 再次複製圖號</button>
+                <button onclick="startInPageNav(${lat}, ${lng}, '${road || code}')" style="background:#16a34a;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">🚀 頁面內直接路徑導航</button>
+                <button onclick="openGoogleMaps(${lat}, ${lng})" style="background:#2563eb;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">🧭 開啟 Google Maps 外部導航</button>
+                <button onclick="silentCopy('${code}'); this.innerText='✓ 已複製';" style="background:#475569;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">📋 再次複製圖號</button>
                 <button onclick="promptAddCustomBase(${lat}, ${lng}, '${road || code}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">⭐ 儲存為常用永久據點</button>
             `).openPopup();
 
@@ -848,15 +912,32 @@
     map.on('mousedown', (e) => startLongPress(e.latlng));
     map.on('mouseup', cancelLongPress);
     map.on('mousemove', cancelLongPress);
+
+    // 手機觸控事件優化：加入 10px 防手震容差
     map.on('touchstart', (e) => {
-        if (e.touches && e.touches.length === 1) {
-            const touch = e.touches[0];
-            const pt = map.mouseEventToLatLng(touch);
+        if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length === 1) {
+            const touch = e.originalEvent.touches[0];
+            touchStartPos = { x: touch.clientX, y: touch.clientY };
+            const pt = map.mouseEventToLatLng(e.originalEvent);
             startLongPress(pt);
         }
     });
+
+    map.on('touchmove', (e) => {
+        if (!touchStartPos || !e.originalEvent.touches || e.originalEvent.touches.length !== 1) {
+            cancelLongPress();
+            return;
+        }
+        const touch = e.originalEvent.touches[0];
+        const dx = Math.abs(touch.clientX - touchStartPos.x);
+        const dy = Math.abs(touch.clientY - touchStartPos.y);
+        // 晃動超過 10 像素才判定為拖曳地圖並取消長按
+        if (dx > 10 || dy > 10) {
+            cancelLongPress();
+        }
+    });
+
     map.on('touchend', cancelLongPress);
-    map.on('touchmove', cancelLongPress);
 
     let markersLayer = L.layerGroup().addTo(map);
 
@@ -913,13 +994,6 @@
         }
     });
 
-    function locateBase(index) {
-        const target = allBaseLocations[index];
-        map.flyTo([target.lat, target.lng], 16);
-        baseMarkers[index].openPopup();
-        closeMobileSidebar();
-    }
-
     async function fetchRoadName(lat, lng) {
         try {
             const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
@@ -974,6 +1048,7 @@
 
             tooltip.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
+                closeMobileSidebar();
                 if (isTapSortMode) {
                     handleCaseMarkerClick(c);
                 } else {
@@ -986,7 +1061,8 @@
                 ${c.road ? `<b>路名: ${c.road}</b><br>` : ''}
                 圖號: <b>${c.code}</b><br>
                 坐標: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}<br><br>
-                <button onclick="openGoogleMaps(${c.lat}, ${c.lng})" style="background:#dc2626;padding:9px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:13px;">🧭 開啟 Google Maps 導航</button>
+                <button onclick="startInPageNav(${c.lat}, ${c.lng}, '${title}')" style="background:#16a34a;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:6px;">🚀 頁面內直接路徑導航</button>
+                <button onclick="openGoogleMaps(${c.lat}, ${c.lng})" style="background:#dc2626;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">🧭 開啟 Google Maps 外部導航</button>
             `);
 
             const item = document.createElement('div');
@@ -1156,6 +1232,7 @@
     }
 
     function clearAll() {
+        stopInPageNav();
         markersLayer.clearLayers();
         if (inspectMarker) map.removeLayer(inspectMarker);
         parsedCases = [];
