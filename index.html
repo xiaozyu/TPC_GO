@@ -27,8 +27,8 @@
             border-right: 1px solid #1f2937; 
             display: flex; 
             flex-direction: column; 
-            padding: 12px; 
-            gap: 8px; 
+            padding: 10px; 
+            gap: 6px; 
             z-index: 1001; 
             box-shadow: 2px 0 12px rgba(0,0,0,0.6);
             transition: transform 0.25s ease;
@@ -37,13 +37,13 @@
         #map { flex: 1; height: 100%; width: 100%; z-index: 1; }
 
         .header-box { display: flex; justify-content: space-between; align-items: center; }
-        h3 { font-size: 16px; color: #38bdf8; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+        h3 { font-size: 15px; color: #38bdf8; font-weight: 800; display: flex; align-items: center; gap: 6px; }
 
         textarea { 
             width: 100%; 
-            height: 80px; 
-            padding: 8px; 
-            font-size: 13px; 
+            height: 65px; 
+            padding: 6px; 
+            font-size: 12px; 
             resize: none; 
             border: 1px solid #374151; 
             border-radius: 6px; 
@@ -52,17 +52,17 @@
             color: #facc15;
         }
 
-        .btn-group { display: flex; flex-direction: column; gap: 6px; }
+        .btn-group { display: flex; flex-direction: column; gap: 4px; }
         button { 
             width: 100%; 
-            padding: 8px; 
+            padding: 7px; 
             background: #2563eb; 
             color: white; 
             border: none; 
             border-radius: 6px; 
             cursor: pointer; 
             font-weight: bold; 
-            font-size: 13px;
+            font-size: 12px;
             touch-action: manipulation;
         }
         button:active { filter: brightness(0.85); }
@@ -71,18 +71,25 @@
         .mode-btn { background: #d97706; }
         .mode-btn.active { background: #dc2626; box-shadow: 0 0 10px #dc2626; }
         .copy-btn { background: #16a34a; }
-        .clear-btn { background: #4b5563; padding: 5px; font-size: 11px; }
+        .clear-btn { background: #4b5563; padding: 4px; font-size: 11px; }
         .install-btn { background: #9333ea; display: none; }
 
-        #list { flex: 1; overflow-y: auto; border-top: 1px solid #1f2937; padding-top: 6px; -webkit-overflow-scrolling: touch; }
+        #list { 
+            flex: 1; 
+            overflow-y: auto; 
+            border-top: 1px solid #1f2937; 
+            padding-top: 4px; 
+            -webkit-overflow-scrolling: touch;
+            min-height: 230px; 
+        }
         
         .item { 
             background: #1f2937; 
-            padding: 8px 10px; 
+            padding: 6px 8px; 
             border: 1px solid #374151; 
             border-radius: 6px; 
-            margin-bottom: 6px; 
-            font-size: 13px; 
+            margin-bottom: 4px; 
+            font-size: 12px; 
             display: flex; 
             justify-content: space-between; 
             align-items: center;
@@ -90,7 +97,7 @@
             user-select: none;
             color: #fff;
         }
-        .drag-handle { cursor: grab; color: #9ca3af; font-size: 16px; margin-right: 8px; }
+        .drag-handle { cursor: grab; color: #9ca3af; font-size: 15px; margin-right: 6px; }
 
         .floating-controls {
             position: absolute;
@@ -131,7 +138,7 @@
             background: rgba(220, 38, 38, 0.95);
             border: 2px solid #ffffff;
             color: #ffffff;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 800;
             padding: 3px 6px;
             border-radius: 6px;
@@ -142,11 +149,11 @@
             transition: transform 0.15s ease, z-index 0.15s ease;
         }
         .case-label-large:hover, .case-label-large:active {
-            transform: scale(1.15);
+            transform: scale(1.18);
             z-index: 99999 !important;
             background: #b91c1c;
         }
-        .case-road-text { color: #fef08a; font-weight: bold; font-size: 11px; margin-left: 4px; }
+        .case-road-text { color: #fef08a; font-weight: bold; font-size: 10px; margin-left: 3px; }
 
         .base-label {
             background: rgba(15, 23, 42, 0.9);
@@ -292,7 +299,7 @@
                 top: 0;
                 left: 0;
                 width: 100%;
-                height: 52vh;
+                height: 72vh;
                 transform: translateY(-100%);
                 border-right: none;
                 border-bottom: 3px solid #2563eb;
@@ -316,7 +323,7 @@
         <span style="font-size:12px;color:#9ca3af;cursor:pointer;" onclick="closeMobileSidebar()">✕ 關閉收合</span>
     </div>
 
-    <div style="font-size:11px;color:#9ca3af;line-height:1.3;">未打G自動補G。<b>點字體或圖釘直接導航/排序</b></div>
+    <div style="font-size:11px;color:#9ca3af;line-height:1.2;">未打G自動補G。<b>點字體或圖釘直接導航/排序</b></div>
 
     <textarea id="input" placeholder="可直接手動輸入，或點下方一鍵匯入：
 青年路50號邊 G4263SA49
@@ -706,7 +713,7 @@
         const c = e2 * Math.cos(phi) * Math.cos(phi);
         const A_val = (lam - lon0) * Math.cos(phi);
 
-        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 1024) * phi
+        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256) * phi
             - (3 * e * e / 8 + 3 * Math.pow(e, 4) / 32 + 45 * Math.pow(e, 6) / 1024) * Math.sin(2 * phi)
             + (15 * Math.pow(e, 4) / 256 + 45 * Math.pow(e, 6) / 1024) * Math.sin(4 * phi)
             - (35 * Math.pow(e, 6) / 3072) * Math.sin(6 * phi));
@@ -727,7 +734,7 @@
         const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
         
         const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
-        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 / 32;
         const j3 = 151 * e1 * e1 * e1 / 96;
         
         const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
@@ -1057,95 +1064,118 @@
         const bounds = [];
         allBaseLocations.forEach(loc => bounds.push([loc.lat, loc.lng]));
 
-        const directions = ['top', 'bottom', 'right', 'left'];
-        const offsets = [
-            [0, -12],
-            [0, 12],
-            [14, 0],
-            [-14, 0]
-        ];
-
-        parsedCases.forEach((c, idx) => {
-            bounds.push([c.lat, c.lng]);
-
-            let nearbyCount = 0;
-            for (let j = 0; j < idx; j++) {
-                const prev = parsedCases[j];
-                const d = Math.hypot(c.lat - prev.lat, c.lng - prev.lng);
-                if (d < 0.0012) {
-                    nearbyCount++;
+        // 群組判定演算法：50 公尺 (約 0.00045 度) 內的極近案件進行交錯方位與階梯式偏移避讓
+        const clusters = [];
+        parsedCases.forEach((c, i) => {
+            let found = false;
+            for (let cl of clusters) {
+                if (Math.hypot(c.lat - cl.centerLat, c.lng - cl.centerLng) < 0.00045) {
+                    cl.items.push({ caseData: c, originalIndex: i });
+                    found = true;
+                    break;
                 }
             }
+            if (!found) {
+                clusters.push({
+                    centerLat: c.lat,
+                    centerLng: c.lng,
+                    items: [{ caseData: c, originalIndex: i }]
+                });
+            }
+        });
 
-            const chosenDir = directions[nearbyCount % directions.length];
-            const chosenOffset = offsets[nearbyCount % offsets.length];
+        clusters.forEach(cl => {
+            const total = cl.items.length;
+            cl.items.forEach((entry, k) => {
+                const c = entry.caseData;
+                const idx = entry.originalIndex;
+                bounds.push([c.lat, c.lng]);
 
-            const marker = L.marker([c.lat, c.lng], {
-                icon: L.icon({
-                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
-                }),
-                zIndexOffset: (idx + 1) * 10
-            }).addTo(markersLayer);
-            c.marker = marker;
+                let chosenDir = 'top';
+                let chosenOffset = [0, -12];
 
-            const onMarkerTrigger = (e) => {
-                L.DomEvent.stopPropagation(e);
-                closeMobileSidebar();
-                if (isTapSortMode) {
-                    handleCaseMarkerClick(c);
-                } else {
-                    marker.openPopup();
+                if (total > 1) {
+                    // 極度密集時：一上一下垂直錯開，並加入水平與垂直階梯偏移
+                    if (k % 2 === 0) {
+                        chosenDir = 'top';
+                        const shiftY = -12 - Math.floor(k / 2) * 26;
+                        const shiftX = (k % 4 === 0) ? -10 : 10;
+                        chosenOffset = [shiftX, shiftY];
+                    } else {
+                        chosenDir = 'bottom';
+                        const shiftY = 12 + Math.floor(k / 2) * 26;
+                        const shiftX = (k % 4 === 1) ? 10 : -10;
+                        chosenOffset = [shiftX, shiftY];
+                    }
                 }
-            };
 
-            marker.on('click', onMarkerTrigger);
+                const marker = L.marker([c.lat, c.lng], {
+                    icon: L.icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34],
+                        shadowSize: [41, 41]
+                    }),
+                    zIndexOffset: (idx + 1) * 20
+                }).addTo(markersLayer);
+                c.marker = marker;
 
-            const title = `案件 ${c.displayIndex}`;
-            const roadLabel = c.road ? ` | ${c.road}` : '';
+                const onMarkerTrigger = (e) => {
+                    L.DomEvent.stopPropagation(e);
+                    closeMobileSidebar();
+                    if (isTapSortMode) {
+                        handleCaseMarkerClick(c);
+                    } else {
+                        marker.openPopup();
+                    }
+                };
 
-            const tooltip = marker.bindTooltip(`<b>${title}</b> ${c.code}<span class="case-road-text">${roadLabel}</span>`, {
-                permanent: true,
-                direction: chosenDir,
-                offset: chosenOffset,
-                className: 'case-label-large',
-                interactive: true
-            });
+                marker.on('click', onMarkerTrigger);
 
-            tooltip.on('click', onMarkerTrigger);
+                const title = `案件 ${c.displayIndex}`;
+                const roadLabel = c.road ? ` | ${c.road}` : '';
 
-            marker.bindPopup(`
-                <b style="font-size:15px;color:#dc2626;">${title} (${c.rawName})</b><br>
-                ${c.road ? `<b>路名: ${c.road}</b><br>` : ''}
-                圖號: <b>${c.code}</b><br>
-                坐標: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}<br><br>
-                <button onclick="startInPageNav(${c.lat}, ${c.lng}, '${title}')" style="background:#16a34a;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:6px;">🚀 頁面內直接路徑導航</button>
-                <button onclick="openGoogleMaps(${c.lat}, ${c.lng})" style="background:#dc2626;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">🧭 開啟 Google Maps 外部導航</button>
-            `);
+                const tooltip = marker.bindTooltip(`<b>${title}</b> ${c.code}<span class="case-road-text">${roadLabel}</span>`, {
+                    permanent: true,
+                    direction: chosenDir,
+                    offset: chosenOffset,
+                    className: 'case-label-large',
+                    interactive: true
+                });
 
-            const item = document.createElement('div');
-            item.className = 'item';
-            item.setAttribute('data-index', idx);
-            item.innerHTML = `
-                <div style="display:flex;align-items:center;flex:1;">
-                    <span class="drag-handle">☰</span>
-                    <div>
-                        <b style="color:#ef4444;font-size:14px;">${title}</b> <span style="font-size:12px;color:#cbd5e1;font-weight:bold;">${c.code}</span><br>
-                        <span style="color:#aaa;font-size:11px;">${c.rawName}</span> 
-                        <span style="color:#60a5fa;font-size:11px;">${c.road ? `(${c.road})` : ''}</span>
+                tooltip.on('click', onMarkerTrigger);
+
+                marker.bindPopup(`
+                    <b style="font-size:15px;color:#dc2626;">${title} (${c.rawName})</b><br>
+                    ${c.road ? `<b>路名: ${c.road}</b><br>` : ''}
+                    圖號: <b>${c.code}</b><br>
+                    坐標: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}<br><br>
+                    <button onclick="startInPageNav(${c.lat}, ${c.lng}, '${title}')" style="background:#16a34a;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:6px;">🚀 頁面內直接路徑導航</button>
+                    <button onclick="openGoogleMaps(${c.lat}, ${c.lng})" style="background:#dc2626;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">🧭 開啟 Google Maps 外部導航</button>
+                `);
+
+                const item = document.createElement('div');
+                item.className = 'item';
+                item.setAttribute('data-index', idx);
+                item.innerHTML = `
+                    <div style="display:flex;align-items:center;flex:1;">
+                        <span class="drag-handle">☰</span>
+                        <div>
+                            <b style="color:#ef4444;font-size:13px;">${title}</b> <span style="font-size:11px;color:#cbd5e1;font-weight:bold;">${c.code}</span><br>
+                            <span style="color:#aaa;font-size:11px;">${c.rawName}</span> 
+                            <span style="color:#60a5fa;font-size:11px;">${c.road ? `(${c.road})` : ''}</span>
+                        </div>
                     </div>
-                </div>
-            `;
-            item.onclick = () => {
-                map.flyTo([c.lat, c.lng], 17);
-                marker.openPopup();
-                closeMobileSidebar();
-            };
-            listContainer.appendChild(item);
+                `;
+                item.onclick = () => {
+                    map.flyTo([c.lat, c.lng], 17);
+                    marker.openPopup();
+                    closeMobileSidebar();
+                };
+                listContainer.appendChild(item);
+            });
         });
     }
 
