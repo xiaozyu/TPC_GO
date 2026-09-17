@@ -73,8 +73,31 @@
         .clear-btn { background: #4b5563; padding: 5px; font-size: 11px; }
         .install-btn { background: #9333ea; display: none; }
 
-        .quick-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid #1f2937; padding-top: 6px; }
-        .quick-btn { background: #1f2937; color: #cbd5e1; font-size: 11px; padding: 5px 2px; border: 1px solid #374151; border-radius: 4px; }
+        .quick-stations { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 4px; 
+            border-top: 1px solid #1f2937; 
+            padding-top: 6px; 
+            max-height: 140px; 
+            overflow-y: auto; 
+        }
+        .quick-btn { 
+            background: #1f2937; 
+            color: #cbd5e1; 
+            font-size: 11px; 
+            padding: 5px 2px; 
+            border: 1px solid #374151; 
+            border-radius: 4px; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+            cursor: pointer;
+        }
+        .quick-btn.custom-btn {
+            border-color: #a855f7;
+            color: #d8b4fe;
+        }
 
         #list { flex: 1; overflow-y: auto; border-top: 1px solid #1f2937; padding-top: 6px; -webkit-overflow-scrolling: touch; }
         
@@ -117,6 +140,11 @@
             font-weight: bold;
             box-shadow: 0 3px 10px rgba(0,0,0,0.35);
             cursor: pointer;
+        }
+        .float-btn.tracking-active {
+            background: #22c55e;
+            color: #ffffff;
+            box-shadow: 0 0 12px #22c55e;
         }
 
         .case-label-large {
@@ -161,6 +189,65 @@
             pointer-events: auto !important;
         }
 
+        .icon-taipower {
+            background: linear-gradient(135deg, #eab308, #ca8a04);
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 0 10px rgba(234, 179, 8, 0.9), 0 2px 6px rgba(0,0,0,0.5);
+            cursor: pointer;
+        }
+
+        .icon-rest {
+            background: linear-gradient(135deg, #38bdf8, #0284c7);
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.9), 0 2px 6px rgba(0,0,0,0.5);
+            cursor: pointer;
+        }
+
+        .icon-food {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.9), 0 2px 6px rgba(0,0,0,0.5);
+            cursor: pointer;
+        }
+
+        .icon-custom {
+            background: linear-gradient(135deg, #a855f7, #7e22ce);
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.9), 0 2px 6px rgba(0,0,0,0.5);
+            cursor: pointer;
+        }
+
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #sidebar {
@@ -188,7 +275,7 @@
 
 <div id="sidebar">
     <div class="header-box">
-        <h3>⚡ TPC_GO 排工導航盤</h3>
+        <h3>⚡ 巨擎地圖</h3>
         <span style="font-size:12px;color:#9ca3af;cursor:pointer;" onclick="closeMobileSidebar()">✕ 關閉收合</span>
     </div>
 
@@ -207,14 +294,8 @@
         <button class="clear-btn" onclick="clearAll()">清空重填</button>
     </div>
 
-    <div class="quick-stations">
-        <button class="quick-btn" onclick="locateBase(0)">龍井服務所</button>
-        <button class="quick-btn" onclick="locateBase(1)">沙鹿服務所</button>
-        <button class="quick-btn" onclick="locateBase(2)">南勢溪公園</button>
-        <button class="quick-btn" onclick="locateBase(3)">萬興陸橋</button>
-        <button class="quick-btn" onclick="locateBase(4)">中華向上陸橋</button>
-        <button class="quick-btn" onclick="locateBase(5)">沙田國三交叉</button>
-    </div>
+    <div style="font-size:11px;color:#38bdf8;font-weight:bold;margin-top:4px;">固定據點與常用地標 (長按自訂點位可刪除)：</div>
+    <div class="quick-stations" id="quickStationsBar"></div>
 
     <div id="list"></div>
 </div>
@@ -223,12 +304,11 @@
 
 <div class="floating-controls">
     <div class="float-btn mobile-toggle-btn" onclick="toggleMobileSidebar()" title="案件選單">📋</div>
-    <div class="float-btn" onclick="locateUser()" title="定位目前位置與圖號">📍</div>
+    <div class="float-btn" id="trackingBtn" onclick="toggleLiveTracking()" title="開關即時動態追蹤定位">🚗</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --- 程式碼動態生成 PWA 圖示與 Manifest ---
     function generateAppIcon(size) {
         const canvas = document.createElement('canvas');
         canvas.width = size;
@@ -275,15 +355,6 @@
         ctx.closePath();
         ctx.fill();
         ctx.restore();
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-        ctx.beginPath();
-        ctx.moveTo(size * 0.58, size * 0.10);
-        ctx.lineTo(size * 0.42, size * 0.30);
-        ctx.lineTo(size * 0.48, size * 0.44);
-        ctx.lineTo(size * 0.54, size * 0.44);
-        ctx.closePath();
-        ctx.fill();
 
         return canvas.toDataURL('image/png');
     }
@@ -365,47 +436,130 @@
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.control.layers({ "Google 道路": googleRoads, "Google 衛星混合": googleHybrid }, null, { position: 'topright' }).addTo(map);
 
-    const baseLocations = [
-        { name: "龍井服務所", lat: 24.193150, lng: 120.546019, color: "green", desc: "公務點" },
-        { name: "沙鹿服務所", lat: 24.230309, lng: 120.565418, color: "green", desc: "公務點" },
-        { name: "南勢溪公園", lat: 24.215784, lng: 120.564731, color: "orange", desc: "午休點" },
-        { name: "萬興陸橋", lat: 24.169068, lng: 120.535600, color: "orange", desc: "午休點" },
-        { name: "中華向上陸橋", lat: 24.217655, lng: 120.544649, color: "orange", desc: "午休點" },
-        { name: "沙田國三交叉", lat: 24.173208, lng: 120.543228, color: "orange", desc: "停駐點" }
+    const defaultBases = [
+        { name: "清水服務所", lat: 24.269184, lng: 120.576343, type: "station", desc: "台電公務點", permanent: true },
+        { name: "沙鹿服務所", lat: 24.230309, lng: 120.565418, type: "station", desc: "台電公務點", permanent: true },
+        { name: "龍井服務所", lat: 24.193150, lng: 120.546019, type: "station", desc: "台電公務點", permanent: true },
+        { name: "南勢溪公園", lat: 24.215784, lng: 120.564731, type: "rest", desc: "午休點", permanent: true },
+        { name: "萬興陸橋", lat: 24.169068, lng: 120.535600, type: "rest", desc: "午休點", permanent: true },
+        { name: "中華向上陸橋", lat: 24.217655, lng: 120.544649, type: "rest", desc: "午休點", permanent: true },
+        { name: "沙田國三交叉", lat: 24.173208, lng: 120.543228, type: "rest", desc: "停駐點", permanent: true },
+        { name: "甲一便當", lat: 24.154347, lng: 120.544246, type: "food", desc: "用餐點", permanent: true },
+        { name: "阿水師便當", lat: 24.204069, lng: 120.522585, type: "food", desc: "用餐點", permanent: true }
     ];
 
+    let customLocations = JSON.parse(localStorage.getItem('tpc_custom_locations') || '[]');
+    let allBaseLocations = [...defaultBases, ...customLocations];
     const baseMarkers = [];
-    baseLocations.forEach(loc => {
-        const marker = L.marker([loc.lat, loc.lng], {
-            icon: L.icon({
-                iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${loc.color}.png`,
-                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                iconSize: [18, 30],
-                iconAnchor: [9, 30],
-                popupAnchor: [1, -26],
-                shadowSize: [30, 30]
-            })
-        }).addTo(map);
 
-        const tooltip = marker.bindTooltip(loc.name, { 
-            permanent: true, 
-            direction: 'bottom', 
-            offset: [0, 4], 
-            className: 'base-label',
-            interactive: true 
+    function saveCustomLocations() {
+        localStorage.setItem('tpc_custom_locations', JSON.stringify(customLocations));
+        reloadBaseMarkers();
+    }
+
+    function addCustomLocation(name, lat, lng, desc) {
+        const item = { name, lat, lng, desc: desc || "自訂地標", type: "custom", permanent: false };
+        customLocations.push(item);
+        saveCustomLocations();
+    }
+
+    function deleteCustomLocation(index) {
+        customLocations.splice(index, 1);
+        saveCustomLocations();
+    }
+
+    function reloadBaseMarkers() {
+        baseMarkers.forEach(m => map.removeLayer(m));
+        baseMarkers.length = 0;
+        allBaseLocations = [...defaultBases, ...customLocations];
+
+        const bar = document.getElementById('quickStationsBar');
+        bar.innerHTML = '';
+
+        allBaseLocations.forEach((loc, idx) => {
+            let iconClass = 'icon-rest';
+            let iconSymbol = 'Zzz';
+            let iconSize = [28, 28];
+            let iconAnchor = [14, 14];
+
+            if (loc.type === 'station') {
+                iconClass = 'icon-taipower';
+                iconSymbol = '⚡';
+                iconSize = [32, 32];
+                iconAnchor = [16, 16];
+            } else if (loc.type === 'food') {
+                iconClass = 'icon-food';
+                iconSymbol = '🍱';
+            } else if (loc.type === 'custom') {
+                iconClass = 'icon-custom';
+                iconSymbol = '⭐';
+            }
+
+            const customIcon = L.divIcon({
+                className: '',
+                html: `<div class="${iconClass}">${iconSymbol}</div>`,
+                iconSize: iconSize,
+                iconAnchor: iconAnchor
+            });
+
+            const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map);
+
+            const tooltip = marker.bindTooltip(loc.name, { 
+                permanent: true, 
+                direction: 'bottom', 
+                offset: [0, 8], 
+                className: 'base-label',
+                interactive: true 
+            });
+
+            tooltip.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
+                marker.openPopup();
+            });
+
+            let deleteBtnHtml = '';
+            if (!loc.permanent) {
+                const customIdx = idx - defaultBases.length;
+                deleteBtnHtml = `<button onclick="deleteCustomLocation(${customIdx})" style="background:#dc2626;padding:5px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:11px;margin-top:4px;">🗑️ 刪除此自訂地標</button>`;
+            }
+
+            marker.bindPopup(`
+                <b style="font-size:14px;color:#1e293b;">【${loc.desc}】${loc.name}</b><br><br>
+                <button onclick="openGoogleMaps(${loc.lat}, ${loc.lng})" style="background:#2563eb;padding:9px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:13px;">🧭 開啟 Google Maps 導航</button>
+                ${deleteBtnHtml}
+            `);
+            baseMarkers.push(marker);
+
+            const qBtn = document.createElement('button');
+            qBtn.className = 'quick-btn' + (loc.permanent ? '' : ' custom-btn');
+            qBtn.innerText = loc.name;
+            qBtn.onclick = () => locateBase(idx);
+
+            if (!loc.permanent) {
+                let pressTimer;
+                const startPress = () => {
+                    pressTimer = setTimeout(() => {
+                        if (confirm(`確定要刪除常用地標「${loc.name}」嗎？`)) {
+                            deleteCustomLocation(idx - defaultBases.length);
+                        }
+                    }, 800);
+                };
+                const cancelPress = () => {
+                    if (pressTimer) clearTimeout(pressTimer);
+                };
+
+                qBtn.addEventListener('mousedown', startPress);
+                qBtn.addEventListener('touchstart', startPress);
+                qBtn.addEventListener('mouseup', cancelPress);
+                qBtn.addEventListener('mouseleave', cancelPress);
+                qBtn.addEventListener('touchend', cancelPress);
+            }
+
+            bar.appendChild(qBtn);
         });
+    }
 
-        tooltip.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
-            marker.openPopup();
-        });
-
-        marker.bindPopup(`
-            <b style="font-size:14px;color:#1e293b;">【${loc.desc}】${loc.name}</b><br><br>
-            <button onclick="openGoogleMaps(${loc.lat}, ${loc.lng})" style="background:#2563eb;padding:9px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:13px;">🧭 開啟 Google Maps 導航</button>
-        `);
-        baseMarkers.push(marker);
-    });
+    reloadBaseMarkers();
 
     let userLatLng = null;
     let userMarker = null;
@@ -414,8 +568,8 @@
     let parsedCases = [];
     let isTapSortMode = false;
     let tapSortedOrder = [];
+    let watchPositionId = null;
 
-    // --- 嚴謹座標轉換（含西海岸 TWD67/TWD97 偏差校正） ---
     function wgs84ToTWD97(lat, lon) {
         const a = 6378137.0, b = 6356752.314245;
         const lon0 = 121 * Math.PI / 180, k0 = 0.9999, dx = 250000;
@@ -567,42 +721,69 @@
         }
     }
 
-    function locateUser() {
+    function updateLivePosition(pos, centerMap = true) {
+        userLatLng = [pos.coords.latitude, pos.coords.longitude];
+        const myCode = coordToPowerCode(userLatLng[0], userLatLng[1]);
+
+        if (userMarker) {
+            userMarker.setLatLng(userLatLng);
+            userCircle.setLatLng(userLatLng);
+            userCircle.setRadius(pos.coords.accuracy || 20);
+        } else {
+            userCircle = L.circle(userLatLng, { radius: pos.coords.accuracy || 20, color: '#2563eb', fillColor: '#2563eb', fillOpacity: 0.15 }).addTo(map);
+            userMarker = L.circleMarker(userLatLng, { radius: 9, color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).addTo(map);
+            
+            const myTooltip = userMarker.bindTooltip(`<b>目前位置</b><br><span style="color:#facc15;font-weight:bold;font-size:12px;">${myCode}</span>`, { 
+                permanent: true, direction: 'top', offset: [0, -10], className: 'base-label', interactive: true 
+            });
+
+            myTooltip.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
+                userMarker.openPopup();
+            });
+        }
+
+        userMarker.bindPopup(`
+            <b>📍 我的即時位置</b><br>
+            台電圖號: <b>${myCode}</b><br>
+            坐標: ${userLatLng[0].toFixed(5)}, ${userLatLng[1].toFixed(5)}<br><br>
+            <button onclick="silentCopy('${myCode}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">📋 複製目前圖號</button>
+            <button onclick="promptAddCustomBase(${userLatLng[0]}, ${userLatLng[1]}, '${myCode}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">⭐ 儲存為常用據點</button>
+        `);
+
+        if (centerMap) {
+            map.panTo(userLatLng);
+        }
+    }
+
+    function toggleLiveTracking() {
+        const btn = document.getElementById('trackingBtn');
+        if (watchPositionId !== null) {
+            navigator.geolocation.clearWatch(watchPositionId);
+            watchPositionId = null;
+            btn.classList.remove('tracking-active');
+            btn.innerText = '🚗';
+            return;
+        }
+
         if (!navigator.geolocation) return;
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                userLatLng = [pos.coords.latitude, pos.coords.longitude];
-                const myCode = coordToPowerCode(userLatLng[0], userLatLng[1]);
 
-                if (userMarker) {
-                    userMarker.setLatLng(userLatLng);
-                    userCircle.setLatLng(userLatLng);
-                } else {
-                    userCircle = L.circle(userLatLng, { radius: pos.coords.accuracy || 30, color: '#2563eb', fillColor: '#2563eb', fillOpacity: 0.15 }).addTo(map);
-                    userMarker = L.circleMarker(userLatLng, { radius: 9, color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).addTo(map);
-                }
-                
-                const myTooltip = userMarker.bindTooltip(`<b>目前位置</b><br><span style="color:#facc15;font-weight:bold;font-size:12px;">${myCode}</span>`, { 
-                    permanent: true, direction: 'top', offset: [0, -10], className: 'base-label', interactive: true 
-                });
+        btn.classList.add('tracking-active');
+        btn.innerText = '🔴';
 
-                myTooltip.on('click', (e) => {
-                    L.DomEvent.stopPropagation(e);
-                    userMarker.openPopup();
-                });
-
-                userMarker.bindPopup(`
-                    <b>📍 我的目前位置</b><br>
-                    台電圖號: <b>${myCode}</b><br>
-                    坐標: ${userLatLng[0].toFixed(5)}, ${userLatLng[1].toFixed(5)}<br><br>
-                    <button onclick="silentCopy('${myCode}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">📋 複製圖號</button>
-                `).openPopup();
-
-                map.flyTo(userLatLng, 17);
-            },
+        watchPositionId = navigator.geolocation.watchPosition(
+            (pos) => { updateLivePosition(pos, true); },
             () => {},
-            { enableHighAccuracy: true, timeout: 10000 }
+            { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
         );
+    }
+
+    function promptAddCustomBase(lat, lng, defaultName) {
+        const name = prompt("請輸入自訂地標名稱 (例如: 某某便當店、休息停駐點):", defaultName || "");
+        if (!name || !name.trim()) return;
+        const desc = prompt("請輸入標籤分類 (預設: 常用休息點):", "常用休息點");
+        addCustomLocation(name.trim(), lat, lng, desc ? desc.trim() : "常用休息點");
+        if (inspectMarker) map.removeLayer(inspectMarker);
     }
 
     let pressTimer = null;
@@ -649,8 +830,9 @@
                 ${road ? `路名: <b>${road}</b><br>` : ''}
                 台電圖號: <b style="color:#7e22ce;font-size:15px;">${code}</b> (已自動複製)<br>
                 坐標: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br><br>
-                <button onclick="openGoogleMaps(${lat}, ${lng})" style="background:#2563eb;padding:9px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:13px;margin-bottom:6px;">🧭 開啟 Google Maps 導航</button>
-                <button onclick="silentCopy('${code}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">📋 再次複製圖號</button>
+                <button onclick="openGoogleMaps(${lat}, ${lng})" style="background:#2563eb;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">🧭 開啟 Google Maps 導航</button>
+                <button onclick="silentCopy('${code}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">📋 再次複製圖號</button>
+                <button onclick="promptAddCustomBase(${lat}, ${lng}, '${road || code}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">⭐ 儲存為常用永久據點</button>
             `).openPopup();
 
         }, 500);
@@ -732,7 +914,7 @@
     });
 
     function locateBase(index) {
-        const target = baseLocations[index];
+        const target = allBaseLocations[index];
         map.flyTo([target.lat, target.lng], 16);
         baseMarkers[index].openPopup();
         closeMobileSidebar();
@@ -755,7 +937,7 @@
         markersLayer.clearLayers();
         listContainer.innerHTML = '';
         const bounds = [];
-        baseLocations.forEach(loc => bounds.push([loc.lat, loc.lng]));
+        allBaseLocations.forEach(loc => bounds.push([loc.lat, loc.lng]));
 
         parsedCases.forEach((c, idx) => {
             bounds.push([c.lat, c.lng]);
@@ -829,7 +1011,6 @@
         });
     }
 
-    // --- 核心：移植巨擎導航的高容錯圖號正規表達式 ---
     const COORD_REGEX = /[A-Za-z]?[0-9]{4}\s*[A-Za-z]{2}\s*(?:[0-9]{4}|[0-9]{2})/gi;
 
     function processTextContent(content) {
@@ -839,7 +1020,6 @@
         const newCases = [];
 
         lines.forEach(line => {
-            // 過濾巨擎導航識別的系統雜訊
             if (line.includes("每頁") || line.includes("施工地點") || line.includes("當日") || line.includes("領班")) return;
 
             let matches = line.match(COORD_REGEX);
@@ -886,12 +1066,10 @@
                 }
             });
 
-            // 回填 textarea
             document.getElementById('input').value = parsedCases.map(c => `${c.rawName} ${c.code}`).join('\n');
 
             refreshMarkersAndList();
 
-            // 背景非同步自動補齊路名
             parsedCases.forEach((c) => {
                 if (!c.road) {
                     fetchRoadName(c.lat, c.lng).then(road => {
@@ -904,7 +1082,7 @@
             });
 
             const allBounds = parsedCases.map(c => [c.lat, c.lng]);
-            baseLocations.forEach(loc => allBounds.push([loc.lat, loc.lng]));
+            allBaseLocations.forEach(loc => allBounds.push([loc.lat, loc.lng]));
             map.fitBounds(allBounds, { padding: [40, 40] });
 
             if (window.innerWidth <= 768) closeMobileSidebar();
