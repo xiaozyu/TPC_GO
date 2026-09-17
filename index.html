@@ -14,7 +14,6 @@
     <link id="dynamic-manifest" rel="manifest">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -576,7 +575,7 @@
             const openBaseAction = (e) => {
                 L.DomEvent.stopPropagation(e);
                 closeMobileSidebar();
-                drawSimpleRoute(loc.lat, loc.lng);
+                triggerRouteAndLocate(loc.lat, loc.lng);
                 marker.openPopup();
             };
 
@@ -617,46 +616,60 @@
     let isTapSortMode = false;
     let tapSortedOrder = [];
     let watchPositionId = null;
-    let activeRoutePolyline = null;
 
-    async function drawSimpleRoute(targetLat, targetLng) {
-        if (!userLatLng) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    userLatLng = [pos.coords.latitude, pos.coords.longitude];
-                    fetchAndRenderPolyline(targetLat, targetLng);
-                },
-                () => {},
-                { enableHighAccuracy: true, timeout: 5000 }
-            );
-        } else {
-            fetchAndRenderPolyline(targetLat, targetLng);
+    // 獨立圖層容器：保證地圖上永遠只有 1 條路線
+    const routeLayer = L.layerGroup().addTo(map);
+    let currentRoutingToken = 0;
+
+    function triggerRouteAndLocate(targetLat, targetLng) {
+        if (!navigator.geolocation) {
+            fetchRouteData(targetLat, targetLng);
+            return;
         }
+
+        // 點擊瞬間強制更新一次當前定位，保證由最新位置拉線
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                updateLivePosition(pos, false);
+                fetchRouteData(targetLat, targetLng);
+            },
+            () => {
+                fetchRouteData(targetLat, targetLng);
+            },
+            { enableHighAccuracy: true, timeout: 3000 }
+        );
     }
 
-    async function fetchAndRenderPolyline(targetLat, targetLng) {
-        if (activeRoutePolyline) {
-            map.removeLayer(activeRoutePolyline);
-            activeRoutePolyline = null;
-        }
+    async function fetchRouteData(targetLat, targetLng) {
+        routeLayer.clearLayers();
+        const requestToken = ++currentRoutingToken;
+
+        const startPt = userLatLng ? [userLatLng[0], userLatLng[1]] : [24.2200, 120.5500];
 
         try {
-            const url = `https://router.project-osrm.org/route/v1/driving/${userLatLng[1]},${userLatLng[0]};${targetLng},${targetLat}?overview=full&geometries=geojson`;
+            const url = `https://router.project-osrm.org/route/v1/driving/${startPt[1]},${startPt[0]};${targetLng},${targetLat}?overview=full&geometries=geojson`;
             const resp = await fetch(url);
             if (!resp.ok) throw new Error();
             const data = await resp.json();
+
+            // 若在請求期間又有新的點擊，捨棄舊回應
+            if (requestToken !== currentRoutingToken) return;
+
             if (data.routes && data.routes.length > 0) {
+                routeLayer.clearLayers();
                 const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-                activeRoutePolyline = L.polyline(coords, { color: '#00f0ff', weight: 6, opacity: 0.85 }).addTo(map);
-                map.fitBounds(activeRoutePolyline.getBounds(), { padding: [60, 60] });
+                const poly = L.polyline(coords, { color: '#00f0ff', weight: 6, opacity: 0.9 }).addTo(routeLayer);
+                map.fitBounds(poly.getBounds(), { padding: [60, 60] });
                 return;
             }
         } catch (err) {}
 
-        activeRoutePolyline = L.polyline([[userLatLng[0], userLatLng[1]], [targetLat, targetLng]], {
-            color: '#00f0ff', weight: 5, dashArray: '6, 8', opacity: 0.85
-        }).addTo(map);
-        map.fitBounds(activeRoutePolyline.getBounds(), { padding: [60, 60] });
+        if (requestToken !== currentRoutingToken) return;
+        routeLayer.clearLayers();
+        const line = L.polyline([startPt, [targetLat, targetLng]], {
+            color: '#00f0ff', weight: 5, dashArray: '6, 8', opacity: 0.9
+        }).addTo(routeLayer);
+        map.fitBounds(line.getBounds(), { padding: [60, 60] });
     }
 
     function wgs84ToTWD97(lat, lon) {
@@ -672,7 +685,7 @@
         const c = e2 * Math.cos(phi) * Math.cos(phi);
         const A_val = (lam - lon0) * Math.cos(phi);
 
-        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256) * phi
+        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 1024) * phi
             - (3 * e * e / 8 + 3 * Math.pow(e, 4) / 32 + 45 * Math.pow(e, 6) / 1024) * Math.sin(2 * phi)
             + (15 * Math.pow(e, 4) / 256 + 45 * Math.pow(e, 6) / 1024) * Math.sin(4 * phi)
             - (35 * Math.pow(e, 6) / 3072) * Math.sin(6 * phi));
@@ -693,7 +706,7 @@
         const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
         
         const j1 = 3 * e1 / 2 - 27 * e1 * e1 * e1 / 32;
-        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32;
+        const j2 = 21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 / 32;
         const j3 = 151 * e1 * e1 * e1 / 96;
         
         const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu);
@@ -909,7 +922,7 @@
         const openInspectAction = (e) => {
             L.DomEvent.stopPropagation(e);
             closeMobileSidebar();
-            drawSimpleRoute(lat, lng);
+            triggerRouteAndLocate(lat, lng);
             inspectMarker.openPopup();
         };
 
@@ -1101,7 +1114,7 @@
                     const targetEl = e.target && e.target.getElement ? e.target.getElement() : null;
                     handleCaseMarkerClick(c, targetEl);
                 } else {
-                    drawSimpleRoute(c.lat, c.lng);
+                    triggerRouteAndLocate(c.lat, c.lng);
                     marker.openPopup();
                 }
             };
@@ -1128,7 +1141,7 @@
                     const el = tooltip.getElement();
                     handleCaseMarkerClick(c, el);
                 } else {
-                    drawSimpleRoute(c.lat, c.lng);
+                    triggerRouteAndLocate(c.lat, c.lng);
                     marker.openPopup();
                 }
             });
@@ -1162,7 +1175,7 @@
             `;
             item.onclick = () => {
                 map.flyTo([c.lat, c.lng], 17);
-                drawSimpleRoute(c.lat, c.lng);
+                triggerRouteAndLocate(c.lat, c.lng);
                 marker.openPopup();
                 closeMobileSidebar();
             };
@@ -1330,10 +1343,7 @@
     }
 
     function clearAll() {
-        if (activeRoutePolyline) {
-            map.removeLayer(activeRoutePolyline);
-            activeRoutePolyline = null;
-        }
+        routeLayer.clearLayers();
         markersLayer.clearLayers();
         if (inspectMarker) map.removeLayer(inspectMarker);
         parsedCases = [];
