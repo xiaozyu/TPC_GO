@@ -41,7 +41,7 @@
 
         textarea { 
             width: 100%; 
-            height: 85px; 
+            height: 80px; 
             padding: 8px; 
             font-size: 13px; 
             resize: none; 
@@ -55,7 +55,7 @@
         .btn-group { display: flex; flex-direction: column; gap: 6px; }
         button { 
             width: 100%; 
-            padding: 9px; 
+            padding: 8px; 
             background: #2563eb; 
             color: white; 
             border: none; 
@@ -176,6 +176,7 @@
             font-size: 18px;
             box-shadow: 0 0 10px rgba(234, 179, 8, 0.9), 0 2px 6px rgba(0,0,0,0.5);
             cursor: pointer;
+            pointer-events: auto;
         }
 
         .icon-rest {
@@ -187,12 +188,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 900;
             color: #ffffff;
             letter-spacing: -0.5px;
             box-shadow: 0 0 10px rgba(56, 189, 248, 0.9), 0 2px 6px rgba(0,0,0,0.5);
             cursor: pointer;
+            pointer-events: auto;
         }
 
         .icon-food {
@@ -207,6 +209,7 @@
             font-size: 14px;
             box-shadow: 0 0 10px rgba(249, 115, 22, 0.9), 0 2px 6px rgba(0,0,0,0.5);
             cursor: pointer;
+            pointer-events: auto;
         }
 
         .icon-custom {
@@ -221,6 +224,7 @@
             font-size: 14px;
             box-shadow: 0 0 10px rgba(168, 85, 247, 0.9), 0 2px 6px rgba(0,0,0,0.5);
             cursor: pointer;
+            pointer-events: auto;
         }
 
         #navBanner {
@@ -245,6 +249,13 @@
             display: none !important;
         }
 
+        /* 3D 行車導航 HUD 模式 */
+        .driving-mode .leaflet-map-pane {
+            transform: perspective(800px) rotateX(45deg);
+            transform-origin: 50% 85%;
+            transition: transform 0.4s ease;
+        }
+
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #sidebar {
@@ -252,7 +263,7 @@
                 top: 0;
                 left: 0;
                 width: 100%;
-                height: 75vh;
+                height: 52vh;
                 transform: translateY(-100%);
                 border-right: none;
                 border-bottom: 3px solid #2563eb;
@@ -298,7 +309,7 @@
 
 <div id="navBanner">
     <div id="navBannerText" style="font-size:13px; font-weight:bold;">導航中...</div>
-    <button onclick="stopInPageNav()" style="background:#dc2626; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; width:auto;">結束導航</button>
+    <button onclick="stopInPageNav()" style="background:#dc2626; border:none; color:white; padding:5px 10px; border-radius:4px; font-size:12px; cursor:pointer; width:auto; font-weight:bold;">結束導航</button>
 </div>
 
 <div class="floating-controls">
@@ -510,6 +521,12 @@
 
             const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map);
 
+            marker.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
+                closeMobileSidebar();
+                marker.openPopup();
+            });
+
             const tooltip = marker.bindTooltip(loc.name, { 
                 permanent: true, 
                 direction: 'bottom', 
@@ -527,7 +544,7 @@
             let deleteBtnHtml = '';
             if (!loc.permanent) {
                 const customIdx = idx - defaultBases.length;
-                deleteBtnHtml = `<button onclick="deleteCustomLocation(${customIdx})" style="background:#dc2626;padding:5px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:11px;margin-top:4px;">🗑️ 刪除此自訂地標</button>`;
+                deleteBtnHtml = `<button onclick="deleteCustomLocation(${customIdx})" style="background:#dc2626;padding:6px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:11px;margin-top:4px;">🗑️ 刪除此自訂地標</button>`;
             }
 
             marker.bindPopup(`
@@ -591,7 +608,7 @@
             },
             addWaypoints: false,
             draggableWaypoints: false,
-            fitSelectedRoutes: true,
+            fitSelectedRoutes: false,
             show: false,
             createMarker: () => null
         }).addTo(map);
@@ -607,6 +624,10 @@
             banner.style.display = 'flex';
         });
 
+        // 啟動 3D 行車導航 HUD 模式
+        document.getElementById('map').classList.add('driving-mode');
+        map.setView(userLatLng, 18, { animate: false });
+
         if (watchPositionId === null) {
             toggleLiveTracking();
         }
@@ -619,6 +640,8 @@
         }
         activeNavTarget = null;
         document.getElementById('navBanner').style.display = 'none';
+        document.getElementById('map').classList.remove('driving-mode');
+        map.setZoom(15);
     }
 
     function wgs84ToTWD97(lat, lon) {
@@ -773,7 +796,19 @@
     }
 
     function updateLivePosition(pos, centerMap = true) {
-        userLatLng = [pos.coords.latitude, pos.coords.longitude];
+        const newLat = pos.coords.latitude;
+        const newLng = pos.coords.longitude;
+
+        // 防晃動濾波：若位移小於 3 公尺 (約 0.00003 度) 不重複震盪視野
+        if (userLatLng) {
+            const dLat = Math.abs(newLat - userLatLng[0]);
+            const dLng = Math.abs(newLng - userLatLng[1]);
+            if (dLat < 0.00003 && dLng < 0.00003) {
+                return;
+            }
+        }
+
+        userLatLng = [newLat, newLng];
         const myCode = coordToPowerCode(userLatLng[0], userLatLng[1]);
 
         if (userMarker) {
@@ -811,7 +846,8 @@
         }
 
         if (centerMap) {
-            map.panTo(userLatLng);
+            // 平滑平移取代 fitBounds，完全避免視角晃動縮放
+            map.panTo(userLatLng, { animate: true, duration: 0.8 });
         }
     }
 
@@ -833,7 +869,7 @@
         watchPositionId = navigator.geolocation.watchPosition(
             (pos) => { updateLivePosition(pos, true); },
             () => {},
-            { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+            { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
         );
     }
 
@@ -845,99 +881,106 @@
         if (inspectMarker) map.removeLayer(inspectMarker);
     }
 
+    // 手機長按精準核心邏輯 (原生 Touch 控制，解決晃動與衝突)
     let pressTimer = null;
-    let touchStartPos = null;
+    let touchOrigin = { x: 0, y: 0 };
+    const mapDiv = document.getElementById('map');
 
-    function startLongPress(latlng) {
-        cancelLongPress();
-        pressTimer = setTimeout(async () => {
-            didLongPressTrigger = true;
-            const lat = latlng.lat;
-            const lng = latlng.lng;
-            const code = coordToPowerCode(lat, lng);
-
-            silentCopy(code);
-
-            if (inspectMarker) map.removeLayer(inspectMarker);
-
-            inspectMarker = L.marker([lat, lng], {
-                icon: L.icon({
-                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
-                })
-            }).addTo(map);
-
-            const road = await fetchRoadName(lat, lng);
-            const roadText = road ? ` | ${road}` : '';
-
-            const inspTooltip = inspectMarker.bindTooltip(`<b>${code}</b> (已複製)<span style="color:#fef08a;font-size:11px;">${roadText}</span>`, {
-                permanent: true,
-                direction: 'top',
-                offset: [0, -12],
-                className: 'inspect-label',
-                interactive: true
-            });
-
-            inspTooltip.on('click', (e) => {
-                L.DomEvent.stopPropagation(e);
-                closeMobileSidebar();
-                inspectMarker.openPopup();
-            });
-
-            inspectMarker.bindPopup(`
-                <b>🔍 點位圖號解析</b><br>
-                ${road ? `路名: <b>${road}</b><br>` : ''}
-                台電圖號: <b style="color:#7e22ce;font-size:15px;">${code}</b> (已自動複製)<br>
-                坐標: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br><br>
-                <button onclick="startInPageNav(${lat}, ${lng}, '${road || code}')" style="background:#16a34a;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">🚀 頁面內直接路徑導航</button>
-                <button onclick="openGoogleMaps(${lat}, ${lng})" style="background:#2563eb;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">🧭 開啟 Google Maps 外部導航</button>
-                <button onclick="silentCopy('${code}'); this.innerText='✓ 已複製';" style="background:#475569;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">📋 再次複製圖號</button>
-                <button onclick="promptAddCustomBase(${lat}, ${lng}, '${road || code}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">⭐ 儲存為常用永久據點</button>
-            `).openPopup();
-
-        }, 500);
-    }
-
-    function cancelLongPress() {
+    function cancelTimer() {
         if (pressTimer) {
             clearTimeout(pressTimer);
             pressTimer = null;
         }
     }
 
-    map.on('mousedown', (e) => startLongPress(e.latlng));
-    map.on('mouseup', cancelLongPress);
-    map.on('mousemove', cancelLongPress);
+    async function triggerInspectAction(latlng) {
+        didLongPressTrigger = true;
+        const lat = latlng.lat;
+        const lng = latlng.lng;
+        const code = coordToPowerCode(lat, lng);
 
-    // 手機觸控事件優化：加入 10px 防手震容差
-    map.on('touchstart', (e) => {
-        if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length === 1) {
-            const touch = e.originalEvent.touches[0];
-            touchStartPos = { x: touch.clientX, y: touch.clientY };
-            const pt = map.mouseEventToLatLng(e.originalEvent);
-            startLongPress(pt);
-        }
+        silentCopy(code);
+
+        if (inspectMarker) map.removeLayer(inspectMarker);
+
+        inspectMarker = L.marker([lat, lng], {
+            icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            })
+        }).addTo(map);
+
+        inspectMarker.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            closeMobileSidebar();
+            inspectMarker.openPopup();
+        });
+
+        const road = await fetchRoadName(lat, lng);
+        const roadText = road ? ` | ${road}` : '';
+
+        const inspTooltip = inspectMarker.bindTooltip(`<b>${code}</b> (已複製)<span style="color:#fef08a;font-size:11px;">${roadText}</span>`, {
+            permanent: true,
+            direction: 'top',
+            offset: [0, -12],
+            className: 'inspect-label',
+            interactive: true
+        });
+
+        inspTooltip.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            closeMobileSidebar();
+            inspectMarker.openPopup();
+        });
+
+        inspectMarker.bindPopup(`
+            <b>🔍 點位圖號解析</b><br>
+            ${road ? `路名: <b>${road}</b><br>` : ''}
+            台電圖號: <b style="color:#7e22ce;font-size:15px;">${code}</b> (已自動複製)<br>
+            坐標: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br><br>
+            <button onclick="startInPageNav(${lat}, ${lng}, '${road || code}')" style="background:#16a34a;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">🚀 頁面內直接路徑導航</button>
+            <button onclick="openGoogleMaps(${lat}, ${lng})" style="background:#2563eb;padding:8px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">🧭 開啟 Google Maps 外部導航</button>
+            <button onclick="silentCopy('${code}'); this.innerText='✓ 已複製';" style="background:#475569;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;margin-bottom:5px;">📋 再次複製圖號</button>
+            <button onclick="promptAddCustomBase(${lat}, ${lng}, '${road || code}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;font-size:12px;">⭐ 儲存為常用永久據點</button>
+        `).openPopup();
+    }
+
+    // 電腦滑鼠事件
+    map.on('mousedown', (e) => {
+        cancelTimer();
+        pressTimer = setTimeout(() => triggerInspectAction(e.latlng), 500);
     });
+    map.on('mouseup mousemove', cancelTimer);
 
-    map.on('touchmove', (e) => {
-        if (!touchStartPos || !e.originalEvent.touches || e.originalEvent.touches.length !== 1) {
-            cancelLongPress();
-            return;
+    // 手機觸控原生監聽 (防手震容差提高至 18px，確保手機長按必成功)
+    mapDiv.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            cancelTimer();
+            const t = e.touches[0];
+            touchOrigin = { x: t.clientX, y: t.clientY };
+            pressTimer = setTimeout(() => {
+                const pt = map.containerPointToLatLng([t.clientX, t.clientY]);
+                triggerInspectAction(pt);
+            }, 550);
         }
-        const touch = e.originalEvent.touches[0];
-        const dx = Math.abs(touch.clientX - touchStartPos.x);
-        const dy = Math.abs(touch.clientY - touchStartPos.y);
-        // 晃動超過 10 像素才判定為拖曳地圖並取消長按
-        if (dx > 10 || dy > 10) {
-            cancelLongPress();
-        }
-    });
+    }, { passive: true });
 
-    map.on('touchend', cancelLongPress);
+    mapDiv.addEventListener('touchmove', (e) => {
+        if (pressTimer && e.touches.length === 1) {
+            const t = e.touches[0];
+            const dist = Math.hypot(t.clientX - touchOrigin.x, t.clientY - touchOrigin.y);
+            if (dist > 18) {
+                cancelTimer();
+            }
+        }
+    }, { passive: true });
+
+    mapDiv.addEventListener('touchend', cancelTimer, { passive: true });
+    mapDiv.addEventListener('touchcancel', cancelTimer, { passive: true });
 
     let markersLayer = L.layerGroup().addTo(map);
 
@@ -1029,9 +1072,12 @@
             c.marker = marker;
 
             marker.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
+                closeMobileSidebar();
                 if (isTapSortMode) {
-                    L.DomEvent.stopPropagation(e);
                     handleCaseMarkerClick(c);
+                } else {
+                    marker.openPopup();
                 }
             });
 
