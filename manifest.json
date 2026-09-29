@@ -1,9 +1,9 @@
 {
-  "id": "/TPC_GO_FINAL_APP/",
+  "id": "/TPC_GO/?v=2026",
   "name": "巨擎地圖",
   "short_name": "巨擎地圖",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/TPC_GO/index.html",
+  "scope": "/TPC_GO/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f172a",
