@@ -186,6 +186,26 @@
             pointer-events: auto !important;
         }
 
+        /* 保證即時更新的黑色定位標籤 */
+        .live-loc-badge {
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid #38bdf8;
+            color: #f8fafc;
+            padding: 3px 7px;
+            border-radius: 6px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.6);
+            white-space: nowrap;
+            font-size: 11px;
+            font-weight: bold;
+            display: inline-block;
+            transform: translate(-50%, -100%);
+            margin-top: -14px;
+            text-align: center;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        .live-loc-badge span { color: #facc15; font-weight: 800; font-family: monospace; font-size: 12px; }
+
         .inspect-label {
             background: rgba(126, 34, 206, 0.95);
             border: 2px solid #ffffff;
@@ -312,7 +332,7 @@
         <span style="font-size:12px;color:#9ca3af;cursor:pointer;" onclick="closeMobileSidebar()">✕ 關閉收合</span>
     </div>
 
-    <div style="font-size:11px;color:#9ca3af;line-height:1.2;">未打G自動補G。<b>點字體或圖釘直接導航/排序</b></div>
+    <div style="font-size:11px;color:#9ca3af;line-height:1.2;">未打G自動補G。<b>長按道路 0.5 秒直接查圖號並複製</b></div>
 
     <textarea id="input" placeholder="可直接手動輸入，或點下方一鍵匯入：
 青年路50號邊 G4263SA49
@@ -503,6 +523,34 @@
         closeMobileSidebar();
     });
 
+    // --- 長按地圖 0.5 秒查圖號 (相容桌面滑鼠與行動觸控) ---
+    let mapPressTimer = null;
+    function startMapLongPress(latlng) {
+        cancelMapLongPress();
+        mapPressTimer = setTimeout(() => {
+            if (navigator.vibrate) navigator.vibrate(40);
+            triggerInspectAction(latlng);
+        }, 500);
+    }
+    function cancelMapLongPress() {
+        if (mapPressTimer) {
+            clearTimeout(mapPressTimer);
+            mapPressTimer = null;
+        }
+    }
+
+    map.on('mousedown', (e) => startMapLongPress(e.latlng));
+    map.on('mouseup', cancelMapLongPress);
+    map.on('mousemove', cancelMapLongPress);
+    map.on('touchstart', (e) => {
+        if (e.touches && e.touches.length === 1) {
+            const pt = map.mouseEventToLatLng(e.touches[0]);
+            startMapLongPress(pt);
+        }
+    });
+    map.on('touchend', cancelMapLongPress);
+    map.on('touchmove', cancelMapLongPress);
+
     const defaultBases = [
         { name: "梧棲服務所", lat: 24.259452, lng: 120.536207, type: "station", desc: "台電公務點", permanent: true },
         { name: "清水服務所", lat: 24.269184, lng: 120.576343, type: "station", desc: "台電公務點", permanent: true },
@@ -555,9 +603,13 @@
             } else if (loc.type === 'food') {
                 iconClass = 'icon-food';
                 iconSymbol = '🍱';
+                iconSize = [28, 28];
+                iconAnchor = [14, 14];
             } else if (loc.type === 'custom') {
                 iconClass = 'icon-custom';
                 iconSymbol = '⭐';
+                iconSize = [28, 28];
+                iconAnchor = [14, 14];
             }
 
             const customIcon = L.divIcon({
@@ -568,7 +620,7 @@
             });
 
             const marker = L.marker([loc.lat, loc.lng], { 
-                icon: customIcon,
+                icon: customIcon, 
                 interactive: true 
             }).addTo(map);
 
@@ -584,7 +636,7 @@
                 permanent: true, 
                 direction: 'bottom', 
                 offset: [0, 8], 
-                className: 'base-label',
+                className: 'base-label', 
                 interactive: true 
             });
 
@@ -611,6 +663,7 @@
     let userLatLng = null;
     let userMarker = null;
     let userCircle = null;
+    let userLabelMarker = null; // 獨立標籤 Marker，杜絕文字不更新
     let inspectMarker = null;
     let parsedCases = [];
     let isTapSortMode = false;
@@ -641,7 +694,6 @@
     async function fetchRouteData(targetLat, targetLng) {
         routeLayer.clearLayers();
         const requestToken = ++currentRoutingToken;
-
         const startPt = userLatLng ? [userLatLng[0], userLatLng[1]] : [24.2200, 120.5500];
 
         try {
@@ -689,7 +741,7 @@
         const c = e2 * Math.cos(phi) * Math.cos(phi);
         const A_val = (lam - lon0) * Math.cos(phi);
 
-        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 1024) * phi
+        const M = a * ((1 - e * e / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256) * phi
             - (3 * e * e / 8 + 3 * Math.pow(e, 4) / 32 + 45 * Math.pow(e, 6) / 1024) * Math.sin(2 * phi)
             + (15 * Math.pow(e, 4) / 256 + 45 * Math.pow(e, 6) / 1024) * Math.sin(4 * phi)
             - (35 * Math.pow(e, 6) / 3072) * Math.sin(6 * phi));
@@ -827,45 +879,80 @@
         }
     }
 
+    // --- 關鍵修復：定位更新與黑色標籤即時強制重繪 ---
     function updateLivePosition(pos, centerMap = true) {
         const newLat = pos.coords.latitude;
         const newLng = pos.coords.longitude;
 
-        if (userLatLng) {
-            const dLat = Math.abs(newLat - userLatLng[0]);
-            const dLng = Math.abs(newLng - userLatLng[1]);
-            if (dLat < 0.00002 && dLng < 0.00002) return;
-        }
-
         userLatLng = [newLat, newLng];
         const myCode = coordToPowerCode(userLatLng[0], userLatLng[1]);
+        const badgeHtml = `<div class="live-loc-badge">目前位置<br><span>${myCode}</span></div>`;
 
         if (userMarker) {
             userMarker.setLatLng(userLatLng);
             userCircle.setLatLng(userLatLng);
             userCircle.setRadius(pos.coords.accuracy || 20);
-        } else {
-            userCircle = L.circle(userLatLng, { radius: pos.coords.accuracy || 20, color: '#2563eb', fillColor: '#2563eb', fillOpacity: 0.15 }).addTo(map);
-            userMarker = L.circleMarker(userLatLng, { radius: 9, color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).addTo(map);
-            
-            const myTooltip = userMarker.bindTooltip(`<b>目前位置</b><br><span style="color:#facc15;font-weight:bold;font-size:12px;">${myCode}</span>`, { 
-                permanent: true, direction: 'top', offset: [0, -10], className: 'base-label', interactive: true 
-            });
 
-            myTooltip.on('click', (e) => {
+            // 強制替換整個 DivIcon 內容，徹底解決文字卡住不更新問題
+            userLabelMarker.setLatLng(userLatLng);
+            userLabelMarker.setIcon(L.divIcon({
+                className: 'user-live-custom-div',
+                html: badgeHtml,
+                iconSize: [0, 0]
+            }));
+
+            if (userMarker.isPopupOpen()) {
+                userMarker.setPopupContent(`
+                    <b>📍 我的即時位置</b><br>
+                    台電圖號: <b style="color:#2563eb;">${myCode}</b><br>
+                    坐標: ${userLatLng[0].toFixed(5)}, ${userLatLng[1].toFixed(5)}<br><br>
+                    <button onclick="silentCopy('${myCode}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">📋 複製目前圖號</button>
+                    <button onclick="promptAddCustomBase(${userLatLng[0]}, ${userLatLng[1]}, '${myCode}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">⭐ 儲存為常用據點</button>
+                `);
+            }
+        } else {
+            userCircle = L.circle(userLatLng, { 
+                radius: pos.coords.accuracy || 20, 
+                color: '#2563eb', 
+                fillColor: '#2563eb', 
+                fillOpacity: 0.15 
+            }).addTo(map);
+
+            userMarker = L.circleMarker(userLatLng, { 
+                radius: 9, 
+                color: '#ffffff', 
+                weight: 3, 
+                fillColor: '#2563eb', 
+                fillOpacity: 1 
+            }).addTo(map);
+
+            // 建立獨立的自訂標籤 Marker
+            userLabelMarker = L.marker(userLatLng, {
+                icon: L.divIcon({
+                    className: 'user-live-custom-div',
+                    html: badgeHtml,
+                    iconSize: [0, 0]
+                }),
+                interactive: true
+            }).addTo(map);
+
+            const openUserAction = (e) => {
                 L.DomEvent.stopPropagation(e);
                 closeMobileSidebar();
                 userMarker.openPopup();
-            });
-        }
+            };
 
-        userMarker.bindPopup(`
-            <b>📍 我的即時位置</b><br>
-            台電圖號: <b>${myCode}</b><br>
-            坐標: ${userLatLng[0].toFixed(5)}, ${userLatLng[1].toFixed(5)}<br><br>
-            <button onclick="silentCopy('${myCode}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">📋 複製目前圖號</button>
-            <button onclick="promptAddCustomBase(${userLatLng[0]}, ${userLatLng[1]}, '${myCode}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">⭐ 儲存為常用據點</button>
-        `);
+            userMarker.on('click', openUserAction);
+            userLabelMarker.on('click', openUserAction);
+
+            userMarker.bindPopup(`
+                <b>📍 我的即時位置</b><br>
+                台電圖號: <b style="color:#2563eb;">${myCode}</b><br>
+                坐標: ${userLatLng[0].toFixed(5)}, ${userLatLng[1].toFixed(5)}<br><br>
+                <button onclick="silentCopy('${myCode}'); this.innerText='✓ 已複製';" style="background:#16a34a;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;margin-bottom:6px;">📋 複製目前圖號</button>
+                <button onclick="promptAddCustomBase(${userLatLng[0]}, ${userLatLng[1]}, '${myCode}')" style="background:#7e22ce;padding:7px;border:none;border-radius:4px;color:white;font-weight:bold;cursor:pointer;width:100%;">⭐ 儲存為常用據點</button>
+            `);
+        }
 
         if (centerMap) {
             map.panTo(userLatLng, { animate: true, duration: 0.5 });
@@ -890,7 +977,7 @@
         watchPositionId = navigator.geolocation.watchPosition(
             (pos) => { updateLivePosition(pos, true); },
             () => {},
-            { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
         );
     }
 
