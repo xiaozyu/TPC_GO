@@ -1,3 +1,5 @@
+const CACHE_NAME = 'tpc-go-cache-v1';
+
 self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
